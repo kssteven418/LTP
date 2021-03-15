@@ -43,6 +43,7 @@ from ..funnel.configuration_funnel import FUNNEL_PRETRAINED_CONFIG_ARCHIVE_MAP, 
 from ..gpt2.configuration_gpt2 import GPT2_PRETRAINED_CONFIG_ARCHIVE_MAP, GPT2Config
 from ..gpt_neo.configuration_gpt_neo import GPT_NEO_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTNeoConfig
 from ..ibert.configuration_ibert import IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, IBertConfig
+from ..ibert.configuration_pibert import PIBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, PIBertConfig
 from ..layoutlm.configuration_layoutlm import LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP, LayoutLMConfig
 from ..led.configuration_led import LED_PRETRAINED_CONFIG_ARCHIVE_MAP, LEDConfig
 from ..longformer.configuration_longformer import LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, LongformerConfig
@@ -125,6 +126,7 @@ ALL_PRETRAINED_CONFIG_ARCHIVE_MAP = dict(
         MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP,
         TAPAS_PRETRAINED_CONFIG_ARCHIVE_MAP,
         IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        PIBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
     ]
     for key, value, in pretrained_map.items()
 )
@@ -144,6 +146,7 @@ CONFIG_MAPPING = OrderedDict(
         ("blenderbot-small", BlenderbotSmallConfig),
         ("retribert", RetriBertConfig),
         ("ibert", IBertConfig),
+        ("pibert", PIBertConfig),
         ("mt5", MT5Config),
         ("t5", T5Config),
         ("mobilebert", MobileBertConfig),
@@ -200,6 +203,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("blenderbot-small", "BlenderbotSmall"),
         ("retribert", "RetriBERT"),
         ("ibert", "I-BERT"),
+        ("pibert", "PI-BERT"),
         ("t5", "T5"),
         ("mobilebert", "MobileBERT"),
         ("distilbert", "DistilBERT"),

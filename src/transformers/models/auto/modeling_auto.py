@@ -144,6 +144,14 @@ from ..ibert.modeling_ibert import (
     IBertForTokenClassification,
     IBertModel,
 )
+from ..ibert.modeling_pibert import (
+    PIBertForMaskedLM,
+    PIBertForMultipleChoice,
+    PIBertForQuestionAnswering,
+    PIBertForSequenceClassification,
+    PIBertForTokenClassification,
+    PIBertModel,
+)
 from ..layoutlm.modeling_layoutlm import (
     LayoutLMForMaskedLM,
     LayoutLMForSequenceClassification,
@@ -291,6 +299,7 @@ from .configuration_auto import (
     GPT2Config,
     GPTNeoConfig,
     IBertConfig,
+    PIBertConfig,
     LayoutLMConfig,
     LEDConfig,
     LongformerConfig,
@@ -376,6 +385,7 @@ MODEL_MAPPING = OrderedDict(
         (TapasConfig, TapasModel),
         (MarianConfig, MarianModel),
         (IBertConfig, IBertModel),
+        (PIBertConfig, PIBertModel),
     ]
 )
 
@@ -410,6 +420,7 @@ MODEL_FOR_PRETRAINING_MAPPING = OrderedDict(
         (MPNetConfig, MPNetForMaskedLM),
         (TapasConfig, TapasForMaskedLM),
         (IBertConfig, IBertForMaskedLM),
+        (PIBertConfig, PIBertForMaskedLM),
         (DebertaConfig, DebertaForMaskedLM),
         (DebertaV2Config, DebertaV2ForMaskedLM),
     ]
@@ -456,6 +467,7 @@ MODEL_WITH_LM_HEAD_MAPPING = OrderedDict(
         (DebertaConfig, DebertaForMaskedLM),
         (DebertaV2Config, DebertaV2ForMaskedLM),
         (IBertConfig, IBertForMaskedLM),
+        (PIBertConfig, PIBertForMaskedLM),
     ]
 )
 
@@ -525,6 +537,7 @@ MODEL_FOR_MASKED_LM_MAPPING = OrderedDict(
         (DebertaConfig, DebertaForMaskedLM),
         (DebertaV2Config, DebertaV2ForMaskedLM),
         (IBertConfig, IBertForMaskedLM),
+        (PIBertConfig, PIBertForMaskedLM),
     ]
 )
 
@@ -581,6 +594,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (MPNetConfig, MPNetForSequenceClassification),
         (TapasConfig, TapasForSequenceClassification),
         (IBertConfig, IBertForSequenceClassification),
+        (PIBertConfig, PIBertForSequenceClassification),
     ]
 )
 
@@ -612,6 +626,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING = OrderedDict(
         (DebertaConfig, DebertaForQuestionAnswering),
         (DebertaV2Config, DebertaV2ForQuestionAnswering),
         (IBertConfig, IBertForQuestionAnswering),
+        (PIBertConfig, PIBertForQuestionAnswering),
     ]
 )
 
@@ -647,6 +662,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING = OrderedDict(
         (DebertaConfig, DebertaForTokenClassification),
         (DebertaV2Config, DebertaV2ForTokenClassification),
         (IBertConfig, IBertForTokenClassification),
+        (PIBertConfig, PIBertForTokenClassification),
     ]
 )
 
@@ -671,6 +687,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING = OrderedDict(
         (FunnelConfig, FunnelForMultipleChoice),
         (MPNetConfig, MPNetForMultipleChoice),
         (IBertConfig, IBertForMultipleChoice),
+        (PIBertConfig, PIBertForMultipleChoice),
     ]
 )
 
