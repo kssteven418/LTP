@@ -72,6 +72,7 @@ class PIBertSelfAttention(IBertSelfAttention):
         hidden_states_scaling_factor,
         attention_mask=None,
         head_mask=None,
+        sentence_lengths=None,
         output_attentions=False,
     ):
         # Projection
@@ -117,7 +118,9 @@ class PIBertSelfAttention(IBertSelfAttention):
 
         # update the cascading attention mask
         if self.prune_mode:
-            self.pruner.update_attention_mask(attention_mask, attention_probs)
+            new_attention_mask = self.pruner.update_attention_mask(attention_mask, attention_probs, sentence_lengths)
+        else:
+            new_attention_mask = attention_mask
 
         # Mask heads if we want to
         if head_mask is not None:
@@ -145,7 +148,7 @@ class PIBertSelfAttention(IBertSelfAttention):
             else (context_layer_scaling_factor,)
         )
 
-        return outputs, output_scaling_factor
+        return outputs, output_scaling_factor, new_attention_mask
 
 
 class PIBertAttention(IBertAttention):
@@ -153,11 +156,65 @@ class PIBertAttention(IBertAttention):
         super().__init__(config)
         self.self = PIBertSelfAttention(config)
 
+    def forward(
+        self,
+        hidden_states,
+        hidden_states_scaling_factor,
+        attention_mask=None,
+        head_mask=None,
+        sentence_lengths=None,
+        output_attentions=False,
+    ):
+        self_outputs, self_outputs_scaling_factor, new_attention_mask = self.self(
+            hidden_states,
+            hidden_states_scaling_factor,
+            attention_mask,
+            head_mask,
+            sentence_lengths,
+            output_attentions,
+        )
+        attention_output, attention_output_scaling_factor = self.output(
+            self_outputs[0], self_outputs_scaling_factor[0], hidden_states, hidden_states_scaling_factor
+        )
+        outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
+        outputs_scaling_factor = (attention_output_scaling_factor,) + self_outputs_scaling_factor[1:]
+        return outputs, outputs_scaling_factor, new_attention_mask
+
 
 class PIBertLayer(IBertLayer):
     def __init__(self, config):
         super().__init__(config)
         self.attention = PIBertAttention(config)
+
+    def forward(
+        self,
+        hidden_states,
+        hidden_states_scaling_factor,
+        attention_mask=None,
+        head_mask=None,
+        sentence_lengths=None,
+        output_attentions=False,
+    ):
+
+        self_attention_outputs, self_attention_outputs_scaling_factor, new_attention_mask = self.attention(
+            hidden_states,
+            hidden_states_scaling_factor,
+            attention_mask,
+            head_mask,
+            sentence_lengths,
+            output_attentions=output_attentions,
+        )
+        attention_output = self_attention_outputs[0]
+        attention_output_scaling_factor = self_attention_outputs_scaling_factor[0]
+
+        outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
+
+        layer_output, layer_output_scaling_factor = self.feed_forward_chunk(
+            attention_output, attention_output_scaling_factor
+        )
+        outputs = (layer_output,) + outputs
+
+        return outputs, new_attention_mask
 
 
 class PIBertEncoder(IBertEncoder):
@@ -205,14 +262,10 @@ class PIBertEncoder(IBertEncoder):
         next_decoder_cache = None  # `config.use_cache` is not supported
 
         if self.prune_mode:
-            # Initialize cascading attention mask in first module as the input attention mask
-            self.layer[0].attention.self.pruner.cascading_attention_mask = attention_mask
-            # Determine the number of tokens to keep in each module based on the keep rates for each pruner
-            batch_size = hidden_states.shape[0]
-            live_tokens = (attention_mask == 0).view(batch_size, -1).sum(dim=1)
-            for layer_module in self.layer:
-                layer_module.attention.self.pruner.keep_tokens = \
-                    torch.round(live_tokens * layer_module.attention.self.pruner.keep_rate).long()
+            batch_size = attention_mask.shape[0]
+            sentence_lengths = (attention_mask == 0).view(batch_size, -1).sum(dim=1)
+        else:
+            sentence_lengths = None
 
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
@@ -224,23 +277,23 @@ class PIBertEncoder(IBertEncoder):
                 raise NotImplementedError("gradient checkpointing is not currently supported")
 
             else:
-                layer_outputs = layer_module(
+                layer_outputs, new_attention_mask = layer_module(
                     hidden_states,
                     hidden_states_scaling_factor,
                     attention_mask,
                     layer_head_mask,
+                    sentence_lengths,
                     output_attentions,
                 )
-
             hidden_states = layer_outputs[0]
 
             # TODO: add code for calculating and outputting threshold scores
             if self.prune_mode:
                 # self.threshold_scores[:, i] = self.layer[i].attention.self.pruner.threshold_score
-                attention_mask = self.layer[i].attention.self.pruner.cascading_attention_mask
+                attention_mask = new_attention_mask
 
             if output_attentions:
-                all_self_attentions = all_self_attentions + (layer_outputs[1],)
+                all_self_attentions = all_self_attentions + (layer_outputs[1:-1],)
 
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
