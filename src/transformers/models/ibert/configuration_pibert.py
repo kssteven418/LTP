@@ -112,8 +112,9 @@ class PIBertConfig(PretrainedConfig):
         position_embedding_type="absolute",
         quant_mode=False,
         force_dequant="none",
-        prune_mode=False,
+        prune_mode=None,
         token_keep_rate=1,
+        token_threshold=0,
         **kwargs
     ):
         super().__init__(pad_token_id=pad_token_id, bos_token_id=bos_token_id, eos_token_id=eos_token_id, **kwargs)
@@ -135,4 +136,8 @@ class PIBertConfig(PretrainedConfig):
         self.force_dequant = force_dequant
 
         self.prune_mode = prune_mode
-        self.token_keep_rate = token_keep_rate
+        if self.prune_mode == 'topk':
+            self.prune_kwargs = {'token_keep_rate': token_keep_rate}
+        elif self.prune_mode == 'threshold':
+            self.prune_kwargs = {'token_threshold': token_threshold}
+

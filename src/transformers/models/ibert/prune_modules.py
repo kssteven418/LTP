@@ -41,3 +41,37 @@ class CascadeTokenPruner:
             #    self.threshold_score[i] = -top_scores[i, keep_tokens[i]] / torch.max(-top_scores[i, ...])
 
         return new_attention_mask
+
+
+class ThresholdTokenPruner:
+    """
+    implements the layer-by-layer operations for threshold token pruning, where tokens are pruned if the importance
+    score is strictly less than a given fraction of the maximum token importance score
+    """
+    def __init__(self, token_threshold):
+        self.keep_threshold = token_threshold
+
+    def update_attention_mask(self, attention_mask, attention_probs, sentence_lengths):
+        sz = attention_probs.shape[-1]
+        batch_size = attention_mask.shape[0]
+        if self.keep_threshold == 0:
+            return attention_mask
+
+        # compute the pruning scores by summing the attention probabilities over all heads
+        attention_mask_index = (attention_mask < 0).permute(0, 1, 3, 2).repeat(1, attention_probs.shape[1], 1, sz)
+        attention_probs[attention_mask_index] = 0
+        pruning_scores = attention_probs.view(batch_size, -1, sz).sum(dim=1)
+
+        max_pruning_scores, _ = torch.max(pruning_scores, dim=-1, keepdim=True)
+        relative_pruning_scores = pruning_scores / max_pruning_scores
+
+        # construct the new attention mask
+        new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
+        new_attention_mask[relative_pruning_scores.unsqueeze(1).unsqueeze(1) < self.keep_threshold] = -10000
+
+        print((new_attention_mask == 0).view(batch_size, -1).sum(dim=1).detach().cpu().numpy())
+        return new_attention_mask
+
+
+TOKEN_PRUNERS = {'topk': CascadeTokenPruner, 'threshold': ThresholdTokenPruner}
+

@@ -43,9 +43,10 @@ from ...utils import logging
 from .configuration_pibert import PIBertConfig
 from .quant_modules import IntLayerNorm, QuantEmbedding, QuantLinear
 
-from .modeling_ibert import IBertEmbeddings, IBertSelfAttention,  IBertPooler, IBertLayer, IBertAttention, IBertEncoder, IBertPreTrainedModel
+from .modeling_ibert import IBertEmbeddings, IBertSelfAttention,  IBertPooler, IBertLayer, IBertAttention, IBertEncoder,\
+    IBertPreTrainedModel
 
-from.prune_modules import CascadeTokenPruner
+from .prune_modules import TOKEN_PRUNERS
 
 logger = logging.get_logger(__name__)
 
@@ -63,8 +64,8 @@ class PIBertSelfAttention(IBertSelfAttention):
     def __init__(self, config):
         super().__init__(config)
         self.prune_mode = config.prune_mode
-        if self.prune_mode:
-            self.pruner = CascadeTokenPruner()
+        if self.prune_mode is not None and self.prune_mode in TOKEN_PRUNERS.keys():
+            self.pruner = TOKEN_PRUNERS[self.prune_mode](**config.prune_kwargs)
 
     def forward(
         self,
@@ -222,13 +223,13 @@ class PIBertEncoder(IBertEncoder):
         super().__init__(config)
         self.layer = nn.ModuleList([PIBertLayer(config) for _ in range(config.num_hidden_layers)])
         self.prune_mode = config.prune_mode
-        self.token_keep_rate = config.token_keep_rate
         self.threshold_scores = np.zeros((1, config.num_hidden_layers))
 
-        if self.prune_mode:
-            self.set_token_keep_rates()
+        if self.prune_mode == 'topk':
+            tkr = config.prune_kwargs['token_keep_rate']
+            self.set_token_keep_rates(tkr)
 
-    def set_token_keep_rates(self):
+    def set_token_keep_rates(self, token_keep_rate):
         """
         Following the SpAtten paper, the rules for token pruning are:
         * the first 3 or 15% of layers, whichever is greater, should not be token pruned
@@ -243,7 +244,7 @@ class PIBertEncoder(IBertEncoder):
             if i < layers_before_pruning:
                 self.layer[i].attention.self.pruner.keep_rate = 1.0
             else:
-                m = (self.token_keep_rate - 1) / layers_with_pruning
+                m = (token_keep_rate - 1) / layers_with_pruning
                 self.layer[i].attention.self.pruner.keep_rate = m * (i - layers_before_pruning + 1) + 1
 
     def forward(
@@ -261,7 +262,7 @@ class PIBertEncoder(IBertEncoder):
         all_cross_attentions = None  # `config.add_cross_attention` is not supported
         next_decoder_cache = None  # `config.use_cache` is not supported
 
-        if self.prune_mode:
+        if self.prune_mode == 'topk':
             batch_size = attention_mask.shape[0]
             sentence_lengths = (attention_mask == 0).view(batch_size, -1).sum(dim=1)
         else:
