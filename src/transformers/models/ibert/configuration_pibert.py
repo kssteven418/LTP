@@ -115,6 +115,7 @@ class PIBertConfig(PretrainedConfig):
         prune_mode=None,
         token_keep_rate=1,
         token_threshold=0,
+        final_token_threshold=0,
         **kwargs
     ):
         super().__init__(pad_token_id=pad_token_id, bos_token_id=bos_token_id, eos_token_id=eos_token_id, **kwargs)
@@ -137,7 +138,12 @@ class PIBertConfig(PretrainedConfig):
 
         self.prune_mode = prune_mode
         if self.prune_mode == 'topk':
-            self.prune_kwargs = {'token_keep_rate': token_keep_rate}
+            self.prune_kwargs = {'token_keep_rate': token_keep_rate,
+                                 'num_hidden_layers': num_hidden_layers}
         elif self.prune_mode == 'threshold':
-            self.prune_kwargs = {'token_threshold': token_threshold}
+            self.prune_kwargs = {'token_threshold': token_threshold,
+                                 'num_hidden_layers': num_hidden_layers}
+        elif self.prune_mode == 'rising_threshold':
+            self.prune_kwargs = {'final_token_threshold': final_token_threshold,
+                                 'num_hidden_layers': num_hidden_layers}
 

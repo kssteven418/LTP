@@ -43,9 +43,10 @@ from ...utils import logging
 from .configuration_pibert import PIBertConfig
 from .quant_modules import IntLayerNorm, QuantEmbedding, QuantLinear
 
-from .modeling_ibert import IBertEmbeddings, IBertSelfAttention,  IBertPooler, IBertLayer, IBertAttention, IBertEncoder,\
-    IBertPreTrainedModel
+from .modeling_ibert import IBertEmbeddings, IBertSelfAttention,  IBertPooler, IBertLayer, IBertAttention, \
+    IBertEncoder, IBertPreTrainedModel
 
+from .pibert_model_output import PIBertModelOutput, PIBertSequenceClassifierOutput, PIBertEncoderOutput
 from .prune_modules import TOKEN_PRUNERS
 
 logger = logging.get_logger(__name__)
@@ -61,11 +62,11 @@ PIBERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
 
 
 class PIBertSelfAttention(IBertSelfAttention):
-    def __init__(self, config):
+    def __init__(self, config, module_num):
         super().__init__(config)
         self.prune_mode = config.prune_mode
         if self.prune_mode is not None and self.prune_mode in TOKEN_PRUNERS.keys():
-            self.pruner = TOKEN_PRUNERS[self.prune_mode](**config.prune_kwargs)
+            self.pruner = TOKEN_PRUNERS[self.prune_mode](module_num, **config.prune_kwargs)
 
     def forward(
         self,
@@ -153,9 +154,9 @@ class PIBertSelfAttention(IBertSelfAttention):
 
 
 class PIBertAttention(IBertAttention):
-    def __init__(self, config):
+    def __init__(self, config, module_num):
         super().__init__(config)
-        self.self = PIBertSelfAttention(config)
+        self.self = PIBertSelfAttention(config, module_num)
 
     def forward(
         self,
@@ -183,9 +184,9 @@ class PIBertAttention(IBertAttention):
 
 
 class PIBertLayer(IBertLayer):
-    def __init__(self, config):
+    def __init__(self, config, module_num):
         super().__init__(config)
-        self.attention = PIBertAttention(config)
+        self.attention = PIBertAttention(config, module_num)
 
     def forward(
         self,
@@ -221,31 +222,9 @@ class PIBertLayer(IBertLayer):
 class PIBertEncoder(IBertEncoder):
     def __init__(self, config):
         super().__init__(config)
-        self.layer = nn.ModuleList([PIBertLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layer = nn.ModuleList([PIBertLayer(config, i) for i in range(config.num_hidden_layers)])
         self.prune_mode = config.prune_mode
         self.threshold_scores = np.zeros((1, config.num_hidden_layers))
-
-        if self.prune_mode == 'topk':
-            tkr = config.prune_kwargs['token_keep_rate']
-            self.set_token_keep_rates(tkr)
-
-    def set_token_keep_rates(self, token_keep_rate):
-        """
-        Following the SpAtten paper, the rules for token pruning are:
-        * the first 3 or 15% of layers, whichever is greater, should not be token pruned
-        * for the remaining layers, the fraction of pruned tokens should increase linearly until the desired final
-        value is reached.
-        This method implements these rules and sets the keep_rate field for each pruner in each PIBertLayer.
-        """
-        num_hidden_layers = len(self.layer)
-        for i in range(num_hidden_layers):
-            layers_before_pruning = max(3, math.ceil(0.15 * num_hidden_layers))
-            layers_with_pruning = num_hidden_layers - layers_before_pruning
-            if i < layers_before_pruning:
-                self.layer[i].attention.self.pruner.keep_rate = 1.0
-            else:
-                m = (token_keep_rate - 1) / layers_with_pruning
-                self.layer[i].attention.self.pruner.keep_rate = m * (i - layers_before_pruning + 1) + 1
 
     def forward(
         self,
@@ -262,11 +241,10 @@ class PIBertEncoder(IBertEncoder):
         all_cross_attentions = None  # `config.add_cross_attention` is not supported
         next_decoder_cache = None  # `config.use_cache` is not supported
 
-        if self.prune_mode == 'topk':
-            batch_size = attention_mask.shape[0]
-            sentence_lengths = (attention_mask == 0).view(batch_size, -1).sum(dim=1)
-        else:
-            sentence_lengths = None
+        batch_size = attention_mask.shape[0]
+        batch_tokens = [(attention_mask == 0).view(batch_size, -1).sum(dim=1)] if \
+            (self.prune_mode and not self.training) else None
+        sentence_lengths = (attention_mask == 0).view(batch_size, -1).sum(dim=1) if self.prune_mode else None
 
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
@@ -289,12 +267,17 @@ class PIBertEncoder(IBertEncoder):
             hidden_states = layer_outputs[0]
 
             # TODO: add code for calculating and outputting threshold scores
-            if self.prune_mode:
+            if self.prune_mode and not self.training:
+                layer_token_counts = (new_attention_mask == 0).view(batch_size, -1).sum(dim=1)
+                batch_tokens.append(layer_token_counts)
                 # self.threshold_scores[:, i] = self.layer[i].attention.self.pruner.threshold_score
-                attention_mask = new_attention_mask
+            attention_mask = new_attention_mask
 
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1:-1],)
+
+        if self.prune_mode and not self.training:
+            batch_tokens = torch.stack(batch_tokens).t()
 
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
@@ -308,15 +291,17 @@ class PIBertEncoder(IBertEncoder):
                     all_hidden_states,
                     all_self_attentions,
                     all_cross_attentions,
+                    batch_tokens
                 ]
                 if v is not None
             )
-        return BaseModelOutputWithPastAndCrossAttentions(
+        return PIBertEncoderOutput(
             last_hidden_state=hidden_states,
             past_key_values=next_decoder_cache,
             hidden_states=all_hidden_states,
             attentions=all_self_attentions,
             cross_attentions=all_cross_attentions,
+            batch_tokens=batch_tokens
         )
 
 
@@ -530,13 +515,14 @@ class PIBertModel(PIBertPreTrainedModel):
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]
 
-        return BaseModelOutputWithPoolingAndCrossAttentions(
+        return PIBertModelOutput(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
             past_key_values=encoder_outputs.past_key_values,
             hidden_states=encoder_outputs.hidden_states,
             attentions=encoder_outputs.attentions,
             cross_attentions=encoder_outputs.cross_attentions,
+            batch_tokens=encoder_outputs.batch_tokens
         )
 
 
@@ -721,11 +707,12 @@ class PIBertForSequenceClassification(PIBertPreTrainedModel):
             output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
-        return SequenceClassifierOutput(
+        return PIBertSequenceClassifierOutput(
             loss=loss,
             logits=logits,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
+            batch_tokens=outputs.batch_tokens
         )
 
 

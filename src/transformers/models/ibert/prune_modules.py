@@ -1,9 +1,18 @@
 # Copyright 2021 Samsung Semiconductor Incorporated.
 
 import torch
+import math
 
 
-class CascadeTokenPruner:
+class AbstractTokenPruner:
+    def __init__(self, **kwargs):
+        pass
+
+    def update_attention_mask(self, attention_mask, attention_probs, sentence_lengths):
+        return attention_mask
+
+
+class CascadeTokenPruner(AbstractTokenPruner):
     """
     implements the layer-by-layer operations for the cascade token pruning method described in:
 
@@ -11,13 +20,29 @@ class CascadeTokenPruner:
     SpAtten: Efficient Sparse Attention Architecture with Cascade Token and Head Pruning
     https://arxiv.org/abs/2012.09852
     """
-    def __init__(self):
-        self.keep_rate = None
+    def __init__(self, module_num, token_keep_rate, num_hidden_layers, **kwargs):
+        self.keep_rate = self._set_token_keep_rate(module_num, num_hidden_layers, token_keep_rate)
         self.threshold_score = None
+
+    @staticmethod
+    def _set_token_keep_rate(i, num_hidden_layers, token_keep_rate):
+        """
+        Following the SpAtten paper, the rules for token pruning are:
+        * the first 3 or 15% of layers, whichever is greater, should not be token pruned
+        * for the remaining layers, the fraction of pruned tokens should increase linearly until the desired final
+        value is reached.
+        This method implements these rules and sets the keep_rate field for each pruner in each PIBertLayer.
+        """
+        layers_before_pruning = max(3, math.ceil(0.15 * num_hidden_layers))
+        layers_with_pruning = num_hidden_layers - layers_before_pruning
+        if i < layers_before_pruning:
+            return 1.0
+        else:
+            m = (token_keep_rate - 1) / layers_with_pruning
+            return m * (i - layers_before_pruning + 1) + 1
 
     def update_attention_mask(self, attention_mask, attention_probs, sentence_lengths):
         keep_tokens = torch.round(sentence_lengths * self.keep_rate).long()
-        device = attention_mask.device
         sz = attention_probs.shape[-1]
         batch_size = attention_mask.shape[0]
         self.threshold_score = torch.zeros((batch_size,))
@@ -43,12 +68,12 @@ class CascadeTokenPruner:
         return new_attention_mask
 
 
-class ThresholdTokenPruner:
+class ThresholdTokenPruner(AbstractTokenPruner):
     """
     implements the layer-by-layer operations for threshold token pruning, where tokens are pruned if the importance
     score is strictly less than a given fraction of the maximum token importance score
     """
-    def __init__(self, token_threshold):
+    def __init__(self, module_num, token_threshold, **kwargs):
         self.keep_threshold = token_threshold
 
     def update_attention_mask(self, attention_mask, attention_probs, sentence_lengths):
@@ -69,9 +94,15 @@ class ThresholdTokenPruner:
         new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
         new_attention_mask[relative_pruning_scores.unsqueeze(1).unsqueeze(1) < self.keep_threshold] = -10000
 
-        print((new_attention_mask == 0).view(batch_size, -1).sum(dim=1).detach().cpu().numpy())
         return new_attention_mask
 
 
-TOKEN_PRUNERS = {'topk': CascadeTokenPruner, 'threshold': ThresholdTokenPruner}
+class RisingThresholdTokenPruner(ThresholdTokenPruner):
+    def __init__(self, module_num, final_token_threshold=None, num_hidden_layers=None, **kwargs):
+        self.keep_threshold = final_token_threshold * module_num / num_hidden_layers
+
+
+TOKEN_PRUNERS = {'topk': CascadeTokenPruner,
+                 'threshold': ThresholdTokenPruner,
+                 'rising_threshold': RisingThresholdTokenPruner}
 

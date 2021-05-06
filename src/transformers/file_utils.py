@@ -1130,7 +1130,7 @@ def cached_path(
     extract_compressed_file=False,
     force_extract=False,
     use_auth_token: Union[bool, str, None] = None,
-    local_files_only=False,
+    local_files_only=True,
 ) -> Optional[str]:
     """
     Given something that might be a URL (or might be a local path), determine which. If it's a URL, download the file
@@ -1306,7 +1306,7 @@ def get_from_cache(
     resume_download=False,
     user_agent: Union[Dict, str, None] = None,
     use_auth_token: Union[bool, str, None] = None,
-    local_files_only=False,
+    local_files_only=True,
 ) -> Optional[str]:
     """
     Given a URL, look for the corresponding file in the local cache. If it's not there, download it. Then return the
