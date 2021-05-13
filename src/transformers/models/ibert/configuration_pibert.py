@@ -115,6 +115,7 @@ class PIBertConfig(PretrainedConfig):
         prune_mode=None,
         token_keep_rate=1,
         token_threshold=0,
+        scoring_mode='mean',
         final_token_threshold=0,
         **kwargs
     ):
@@ -140,10 +141,18 @@ class PIBertConfig(PretrainedConfig):
         if self.prune_mode == 'topk':
             self.prune_kwargs = {'token_keep_rate': token_keep_rate,
                                  'num_hidden_layers': num_hidden_layers}
+            self.token_keep_rate = token_keep_rate
         elif self.prune_mode == 'threshold':
             self.prune_kwargs = {'token_threshold': token_threshold,
                                  'num_hidden_layers': num_hidden_layers}
+            self.token_threshold = token_threshold
         elif self.prune_mode == 'rising_threshold':
             self.prune_kwargs = {'final_token_threshold': final_token_threshold,
                                  'num_hidden_layers': num_hidden_layers}
-
+            self.final_token_threshold = final_token_threshold
+        elif self.prune_mode == 'absolute_threshold':
+            self.prune_kwargs = {'final_token_threshold': final_token_threshold,
+                                 'num_hidden_layers': num_hidden_layers,
+                                 'scoring_mode': scoring_mode}
+            self.final_token_threshold = final_token_threshold
+            self.scoring_mode = scoring_mode

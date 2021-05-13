@@ -96,6 +96,11 @@ class PIBertSelfAttention(IBertSelfAttention):
         key_layer = self.transpose_for_scores(key_layer)
         value_layer = self.transpose_for_scores(value_layer)
 
+        if not self.training:
+            attention_mask_binary = attention_mask > -1
+            self.sentence_len = attention_mask_binary.sum(-1).reshape(-1)
+            #print(self.sentence_len)
+
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
         scale = math.sqrt(self.attention_head_size)
@@ -426,6 +431,37 @@ class PIBertModel(PIBertPreTrainedModel):
 
         self.init_weights()
 
+        self.reset_macs()
+
+    def reset_macs(self):
+        self.macs = []
+        self.macs_baseline = []
+
+    def compute_macs(self, attention_mask, return_baseline=False):
+        """
+        Compute the number of multiply-accumulate operations:
+        14LD^2 + 2DL^2 where L is sequence length and D is hidden dimension
+        """
+        def _layer_mac(seqlen, hidden_size):
+            return 14. * seqlen * hidden_size ** 2 + 2. * hidden_size * seqlen ** 2
+
+        num_attention_heads = self.config.num_attention_heads
+        num_hidden_layers = self.config.num_hidden_layers
+        hidden_size = self.config.hidden_size
+
+        mac_estimate_total = 0
+        for i in range(num_hidden_layers):
+            seqlen = self.encoder.layer[i].attention.self.sentence_len
+            mac_estimate = _layer_mac(seqlen, hidden_size)
+            mac_estimate_total += mac_estimate
+
+        if return_baseline:
+            initial_seqlen = self.encoder.layer[0].attention.self.sentence_len
+            baseline = 12 * _layer_mac(initial_seqlen, hidden_size)
+            return mac_estimate_total, baseline
+
+        return mac_estimate_total
+
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
 
@@ -511,6 +547,11 @@ class PIBertModel(PIBertPreTrainedModel):
         )
         sequence_output = encoder_outputs[0]
         pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
+
+        if not self.training:
+            macs, macs_baseline = self.compute_macs(attention_mask, return_baseline=True)
+            self.macs += macs.tolist()
+            self.macs_baseline += macs_baseline.tolist()
 
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]

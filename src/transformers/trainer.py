@@ -1766,6 +1766,10 @@ class Trainer:
 
         n_samples = len(eval_dataset if eval_dataset is not None else self.eval_dataset)
         output.metrics.update(speed_metrics(metric_key_prefix, start_time, n_samples))
+        macs = sum(self.model.ibert.macs) / len(self.model.ibert.macs)
+        macs_baseline = sum(self.model.ibert.macs_baseline) / len(self.model.ibert.macs_baseline)
+        output.metrics.update({'macs': macs / macs_baseline})
+        self.model.ibert.reset_macs()
         self.log(output.metrics)
 
         if self.args.tpu_metrics_debug or self.args.debug:
