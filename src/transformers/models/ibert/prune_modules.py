@@ -145,6 +145,7 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
         #soft_mask = torch.sigmoid(self.temperature * (pruning_scores - self.keep_threshold))
         soft_mask = pruning_scores > self.keep_threshold
 
+        '''
         if not training:
             soft_mask = pruning_scores > self.keep_threshold
             new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
@@ -153,6 +154,7 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
             print(soft_mask[0])
             print(new_attention_mask[0, 0, 0])
             return new_attention_mask
+        '''
 
         #print(soft_mask.shape)
         #new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
