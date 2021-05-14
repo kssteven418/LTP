@@ -124,8 +124,11 @@ class PIBertSelfAttention(IBertSelfAttention):
         attention_probs = self.dropout(attention_probs)
 
         # update the cascading attention mask
+        soft_mask = None
         if self.prune_mode:
-            new_attention_mask = self.pruner.update_attention_mask(attention_mask, attention_probs, sentence_lengths)
+            new_attention_mask = self.pruner.update_attention_mask(attention_mask, attention_probs, sentence_lengths, self.training)
+            if len(new_attention_mask) == 2:
+                new_attention_mask, soft_mask = new_attention_mask
         else:
             new_attention_mask = attention_mask
 
@@ -155,7 +158,7 @@ class PIBertSelfAttention(IBertSelfAttention):
             else (context_layer_scaling_factor,)
         )
 
-        return outputs, output_scaling_factor, new_attention_mask
+        return outputs, output_scaling_factor, new_attention_mask, soft_mask
 
 
 class PIBertAttention(IBertAttention):
@@ -172,7 +175,7 @@ class PIBertAttention(IBertAttention):
         sentence_lengths=None,
         output_attentions=False,
     ):
-        self_outputs, self_outputs_scaling_factor, new_attention_mask = self.self(
+        self_outputs, self_outputs_scaling_factor, new_attention_mask, soft_mask = self.self(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -185,7 +188,7 @@ class PIBertAttention(IBertAttention):
         )
         outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         outputs_scaling_factor = (attention_output_scaling_factor,) + self_outputs_scaling_factor[1:]
-        return outputs, outputs_scaling_factor, new_attention_mask
+        return outputs, outputs_scaling_factor, new_attention_mask, soft_mask
 
 
 class PIBertLayer(IBertLayer):
@@ -203,7 +206,7 @@ class PIBertLayer(IBertLayer):
         output_attentions=False,
     ):
 
-        self_attention_outputs, self_attention_outputs_scaling_factor, new_attention_mask = self.attention(
+        self_attention_outputs, self_attention_outputs_scaling_factor, new_attention_mask, soft_mask = self.attention(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -219,6 +222,9 @@ class PIBertLayer(IBertLayer):
         layer_output, layer_output_scaling_factor = self.feed_forward_chunk(
             attention_output, attention_output_scaling_factor
         )
+
+        if soft_mask is not None:
+            layer_output = layer_output * soft_mask.unsqueeze(-1)
         outputs = (layer_output,) + outputs
 
         return outputs, new_attention_mask
