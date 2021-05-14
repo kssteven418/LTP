@@ -116,7 +116,7 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
         self.scoring_mode = scoring_mode
         self.module_num = module_num
         self.soft = True
-        self.temperature = 50000.
+        self.temperature = 1000.
         print(scoring_mode, self.keep_threshold, final_token_threshold)
 
     def update_attention_mask(self, attention_mask, attention_probs, sentence_lengths, training=True):
@@ -142,15 +142,21 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
             new_attention_mask[pruning_scores.unsqueeze(1).unsqueeze(1) < self.keep_threshold] = -10000
             return new_attention_mask
        
-        soft_mask = torch.sigmoid(self.temperature * (pruning_scores - self.keep_threshold))
+        #soft_mask = torch.sigmoid(self.temperature * (pruning_scores - self.keep_threshold))
+        soft_mask = pruning_scores > self.keep_threshold
+
         if not training:
             soft_mask = pruning_scores > self.keep_threshold
             new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
             new_attention_mask[pruning_scores.unsqueeze(1).unsqueeze(1) < self.keep_threshold] = -10000
-            return new_attention_mask, soft_mask
+            #return new_attention_mask, soft_mask
+            print(soft_mask[0])
+            print(new_attention_mask[0, 0, 0])
+            return new_attention_mask
+
         #print(soft_mask.shape)
-        new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
-        new_attention_mask[pruning_scores.unsqueeze(1).unsqueeze(1) < self.keep_threshold] = -10000
+        #new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
+        #new_attention_mask[pruning_scores.unsqueeze(1).unsqueeze(1) < self.keep_threshold] = -10000
         #print(new_attention_mask.shape)
         #print(soft_mask[0, :50])
         #print(new_attention_mask[0, 0, 0, :50])
