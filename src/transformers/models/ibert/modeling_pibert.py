@@ -47,7 +47,7 @@ from .modeling_ibert import IBertEmbeddings, IBertSelfAttention,  IBertPooler, I
     IBertEncoder, IBertPreTrainedModel
 
 from .pibert_model_output import PIBertModelOutput, PIBertSequenceClassifierOutput, PIBertEncoderOutput
-from .prune_modules import TOKEN_PRUNERS
+from .prune_modules import TOKEN_PRUNERS, GradientMask
 
 logger = logging.get_logger(__name__)
 
@@ -124,11 +124,11 @@ class PIBertSelfAttention(IBertSelfAttention):
         attention_probs = self.dropout(attention_probs)
 
         # update the cascading attention mask
-        soft_mask = None
+        threshold = None
         if self.prune_mode:
             new_attention_mask = self.pruner.update_attention_mask(attention_mask, attention_probs, sentence_lengths, self.training)
             if len(new_attention_mask) == 2:
-                new_attention_mask, soft_mask = new_attention_mask
+                new_attention_mask, threshold = new_attention_mask
         else:
             new_attention_mask = attention_mask
 
@@ -158,7 +158,7 @@ class PIBertSelfAttention(IBertSelfAttention):
             else (context_layer_scaling_factor,)
         )
 
-        return outputs, output_scaling_factor, new_attention_mask, soft_mask
+        return outputs, output_scaling_factor, new_attention_mask, threshold
 
 
 class PIBertAttention(IBertAttention):
@@ -175,7 +175,7 @@ class PIBertAttention(IBertAttention):
         sentence_lengths=None,
         output_attentions=False,
     ):
-        self_outputs, self_outputs_scaling_factor, new_attention_mask, soft_mask = self.self(
+        self_outputs, self_outputs_scaling_factor, new_attention_mask, threshold = self.self(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -188,7 +188,7 @@ class PIBertAttention(IBertAttention):
         )
         outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         outputs_scaling_factor = (attention_output_scaling_factor,) + self_outputs_scaling_factor[1:]
-        return outputs, outputs_scaling_factor, new_attention_mask, soft_mask
+        return outputs, outputs_scaling_factor, new_attention_mask, threshold
 
 
 class PIBertLayer(IBertLayer):
@@ -206,7 +206,7 @@ class PIBertLayer(IBertLayer):
         output_attentions=False,
     ):
 
-        self_attention_outputs, self_attention_outputs_scaling_factor, new_attention_mask, soft_mask = self.attention(
+        self_attention_outputs, self_attention_outputs_scaling_factor, new_attention_mask, threshold = self.attention(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -223,8 +223,10 @@ class PIBertLayer(IBertLayer):
             attention_output, attention_output_scaling_factor
         )
 
-        if soft_mask is not None:
-            layer_output = layer_output * soft_mask.unsqueeze(-1)
+        if threshold is not None:
+            #layer_output = layer_output * soft_mask.unsqueeze(-1)
+            layer_output = GradientMask.apply(layer_output, threshold)
+            #print(threshold)
         outputs = (layer_output,) + outputs
 
         return outputs, new_attention_mask
