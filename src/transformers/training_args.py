@@ -529,6 +529,9 @@ class TrainingArguments:
         default="",
         metadata={"help": "Used by the SageMaker launcher to send mp-specific args. Ignored in Trainer"},
     )
+    lambda_threshold: float = field(
+        default=None, metadata={"help": "Regularization constant to control the retained tokens for threshold learning. None for fixed thresholds."}
+    )
 
     def __post_init__(self):
         # expand paths, if not os.makedirs("~/bar") will make directory

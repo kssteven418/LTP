@@ -1066,6 +1066,9 @@ class Trainer:
         self._total_flos = self.state.total_flos
         model.zero_grad()
 
+        # TODO this is an adhoc solution
+        model.ibert.set_lambda_threshold(self.args.lambda_threshold)
+
         self.control = self.callback_handler.on_train_begin(self.args, self.state, self.control)
 
         # Skip the first epochs_trained epochs to get the random state of the dataloader at the right point.
@@ -1769,8 +1772,13 @@ class Trainer:
         macs = sum(self.model.ibert.macs) / len(self.model.ibert.macs)
         macs_baseline = sum(self.model.ibert.macs_baseline) / len(self.model.ibert.macs_baseline)
         output.metrics.update({'macs': macs / macs_baseline})
+        self.model.ibert.print_sentence_lengths()
         self.model.ibert.reset_macs()
         self.log(output.metrics)
+
+        for i, layer in enumerate(self.model.ibert.encoder.layer):
+            #print(i, "%.5f" %float(layer.attention.self.pruner.keep_threshold))
+            print("%.5f" %float(layer.attention.self.pruner.keep_threshold))
 
         if self.args.tpu_metrics_debug or self.args.debug:
             # tpu-comment: Logging debug metrics for PyTorch/XLA (compile, execute times, ops, etc.)

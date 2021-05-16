@@ -125,10 +125,11 @@ class PIBertSelfAttention(IBertSelfAttention):
 
         # update the cascading attention mask
         threshold = None
+        pruning_scores = None
         if self.prune_mode:
             new_attention_mask = self.pruner.update_attention_mask(attention_mask, attention_probs, sentence_lengths, self.training)
-            if len(new_attention_mask) == 2:
-                new_attention_mask, threshold = new_attention_mask
+            if len(new_attention_mask) == 3:
+                new_attention_mask, threshold, pruning_scores = new_attention_mask
         else:
             new_attention_mask = attention_mask
 
@@ -158,7 +159,7 @@ class PIBertSelfAttention(IBertSelfAttention):
             else (context_layer_scaling_factor,)
         )
 
-        return outputs, output_scaling_factor, new_attention_mask, threshold
+        return outputs, output_scaling_factor, new_attention_mask, threshold, pruning_scores
 
 
 class PIBertAttention(IBertAttention):
@@ -175,7 +176,8 @@ class PIBertAttention(IBertAttention):
         sentence_lengths=None,
         output_attentions=False,
     ):
-        self_outputs, self_outputs_scaling_factor, new_attention_mask, threshold = self.self(
+        self_outputs, self_outputs_scaling_factor, new_attention_mask, \
+        threshold, pruning_scores = self.self(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -188,13 +190,15 @@ class PIBertAttention(IBertAttention):
         )
         outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         outputs_scaling_factor = (attention_output_scaling_factor,) + self_outputs_scaling_factor[1:]
-        return outputs, outputs_scaling_factor, new_attention_mask, threshold
+        return outputs, outputs_scaling_factor, new_attention_mask, threshold, pruning_scores
 
 
 class PIBertLayer(IBertLayer):
     def __init__(self, config, module_num):
         super().__init__(config)
         self.attention = PIBertAttention(config, module_num)
+        self.lambda_threshold = None
+        self.module_num = module_num
 
     def forward(
         self,
@@ -206,7 +210,8 @@ class PIBertLayer(IBertLayer):
         output_attentions=False,
     ):
 
-        self_attention_outputs, self_attention_outputs_scaling_factor, new_attention_mask, threshold = self.attention(
+        self_attention_outputs, self_attention_outputs_scaling_factor, \
+        new_attention_mask, threshold, pruning_scores = self.attention(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -223,10 +228,12 @@ class PIBertLayer(IBertLayer):
             attention_output, attention_output_scaling_factor
         )
 
-        if threshold is not None:
+        if self.lambda_threshold is not None and threshold is not None:
+            assert pruning_scores is not None
             #layer_output = layer_output * soft_mask.unsqueeze(-1)
-            layer_output = GradientMask.apply(layer_output, threshold)
-            #print(threshold)
+            layer_output = GradientMask.apply(layer_output, threshold, pruning_scores, self.lambda_threshold * self.module_num,
+                    self.module_num) # remove this
+            #print(float(threshold))
         outputs = (layer_output,) + outputs
 
         return outputs, new_attention_mask
@@ -444,6 +451,16 @@ class PIBertModel(PIBertPreTrainedModel):
     def reset_macs(self):
         self.macs = []
         self.macs_baseline = []
+        self.seqlen = {i: 0 for i in range(self.config.num_hidden_layers)}
+        self.seqlen_baseline = 0
+
+    def print_sentence_lengths(self):
+        print()
+        if self.seqlen_baseline == 0:
+            return
+        for i, seqlen in self.seqlen.items():
+            print("Layer %d: %.3f (%d/%d)" % (i, seqlen / self.seqlen_baseline * 100,
+                  seqlen, self.seqlen_baseline))
 
     def compute_macs(self, attention_mask, return_baseline=False):
         """
@@ -451,7 +468,7 @@ class PIBertModel(PIBertPreTrainedModel):
         14LD^2 + 2DL^2 where L is sequence length and D is hidden dimension
         """
         def _layer_mac(seqlen, hidden_size):
-            return 14. * seqlen * hidden_size ** 2 + 2. * hidden_size * seqlen ** 2
+            return 12. * seqlen * hidden_size ** 2 + 2. * hidden_size * seqlen ** 2
 
         num_attention_heads = self.config.num_attention_heads
         num_hidden_layers = self.config.num_hidden_layers
@@ -462,13 +479,12 @@ class PIBertModel(PIBertPreTrainedModel):
             seqlen = self.encoder.layer[i].attention.self.sentence_len
             mac_estimate = _layer_mac(seqlen, hidden_size)
             mac_estimate_total += mac_estimate
+            self.seqlen[i] += int(seqlen.sum())
 
-        if return_baseline:
-            initial_seqlen = self.encoder.layer[0].attention.self.sentence_len
-            baseline = 12 * _layer_mac(initial_seqlen, hidden_size)
-            return mac_estimate_total, baseline
-
-        return mac_estimate_total
+        initial_seqlen = self.encoder.layer[0].attention.self.sentence_len
+        baseline = 12 * _layer_mac(initial_seqlen, hidden_size)
+        self.seqlen_baseline += int(initial_seqlen.sum())
+        return mac_estimate_total, baseline
 
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
@@ -483,6 +499,10 @@ class PIBertModel(PIBertPreTrainedModel):
         """
         for layer, heads in heads_to_prune.items():
             self.encoder.layer[layer].attention.prune_heads(heads)
+
+    def set_lambda_threshold(self, lambda_threshold):
+        for layer in self.encoder.layer:
+            layer.lambda_threshold = lambda_threshold
 
     @add_start_docstrings_to_model_forward(PIBERT_INPUTS_DOCSTRING.format("(batch_size, sequence_length)"))
     @add_code_sample_docstrings(
