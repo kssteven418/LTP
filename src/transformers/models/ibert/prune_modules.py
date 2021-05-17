@@ -191,6 +191,7 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
 
         #if self.module_num in [3, 6]:
         #    print(float(self.keep_threshold))
+        #print(self.module_num, float(self.keep_threshold))
 
         return new_attention_mask, self.keep_threshold, pruning_scores
 
