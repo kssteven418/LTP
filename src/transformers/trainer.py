@@ -681,13 +681,23 @@ class Trainer:
             if self.args.adafactor:
                 optimizer_cls = Adafactor
                 optimizer_kwargs = {"scale_parameter": False, "relative_step": False}
+                optimizer_threshold_kwargs = {"scale_parameter": False, "relative_step": False}
             else:
                 optimizer_cls = AdamW
                 optimizer_kwargs = {
                     "betas": (self.args.adam_beta1, self.args.adam_beta2),
                     "eps": self.args.adam_epsilon,
                 }
+                optimizer_threshold_kwargs = {
+                    "betas": (self.args.adam_beta1, self.args.adam_beta2),
+                    "eps": self.args.adam_epsilon,
+                }
             optimizer_kwargs["lr"] = self.args.learning_rate
+            if self.args.lr_threshold is not None:
+                optimizer_threshold_kwargs["lr"] = self.args.lr_threshold
+            else:
+                optimizer_threshold_kwargs = optimizer_kwargs
+
             if self.sharded_ddp == ShardedDDPOption.SIMPLE:
                 self.optimizer = OSS(
                     params=optimizer_grouped_parameters,
@@ -697,11 +707,12 @@ class Trainer:
                 self.optimizer_threshold = OSS(
                     params=optimizer_grouped_parameters_thresholds,
                     optim=optimizer_cls,
-                    **optimizer_kwargs,
+                    **optimizer_threshold_kwargs,
                 )
             else:
                 self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
-                self.optimizer_threshold = optimizer_cls(optimizer_grouped_parameters_thresholds, **optimizer_kwargs)
+                self.optimizer_threshold = optimizer_cls(optimizer_grouped_parameters_thresholds, **optimizer_threshold_kwargs)
+            print(self.optimizer_threshold)
 
         if is_sagemaker_mp_enabled():
             self.optimizer = smp.DistributedOptimizer(self.optimizer)
@@ -731,7 +742,8 @@ class Trainer:
                 self.args.lr_scheduler_type,
                 self.optimizer_threshold,
                 num_warmup_steps=warmup_steps,
-                num_training_steps=num_training_steps * 0.5,
+                #num_training_steps=num_training_steps * 0.5,
+                num_training_steps=num_training_steps,
             )
 
     def num_examples(self, dataloader: DataLoader) -> int:

@@ -529,6 +529,9 @@ class TrainingArguments:
         default="",
         metadata={"help": "Used by the SageMaker launcher to send mp-specific args. Ignored in Trainer"},
     )
+    lr_threshold: float = field(
+        default=None, metadata={"help": "Learning rate for threshold."}
+    )
     lambda_threshold: float = field(
         default=None, metadata={"help": "Regularization constant to control the retained tokens for threshold learning. None for fixed thresholds."}
     )
