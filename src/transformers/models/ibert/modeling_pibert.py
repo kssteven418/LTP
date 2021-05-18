@@ -127,7 +127,7 @@ class PIBertSelfAttention(IBertSelfAttention):
         threshold = None
         pruning_scores = None
         if self.prune_mode:
-            new_attention_mask = self.pruner.update_attention_mask(attention_mask, attention_probs, sentence_lengths, self.training)
+            new_attention_mask = self.pruner.update_attention_mask(attention_mask, attention_probs, sentence_lengths)
             if len(new_attention_mask) == 3:
                 new_attention_mask, threshold, pruning_scores = new_attention_mask
         else:

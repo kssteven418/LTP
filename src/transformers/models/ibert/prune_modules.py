@@ -159,7 +159,7 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
 
         print(float(self.keep_threshold))
 
-    def update_attention_mask(self, attention_mask, attention_probs, sentence_lengths, training=True):
+    def update_attention_mask(self, attention_mask, attention_probs, sentence_lengths):
         sz = attention_probs.shape[-1]
         batch_size = attention_mask.shape[0]
         if self.keep_threshold == 0:
