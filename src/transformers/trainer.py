@@ -1100,6 +1100,13 @@ class Trainer:
 
         # TODO this is an adhoc solution
         model.ibert.set_lambda_threshold(self.args.lambda_threshold)
+        if self.args.masking_mode == 'hard':
+            model.ibert.set_hard_masking(True)
+        elif self.args.masking_mode == 'soft':
+            model.ibert.set_hard_masking(False)
+        else:
+            raise NotImplementedError
+
 
         self.control = self.callback_handler.on_train_begin(self.args, self.state, self.control)
 

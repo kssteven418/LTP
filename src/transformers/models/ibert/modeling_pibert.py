@@ -65,6 +65,7 @@ class PIBertSelfAttention(IBertSelfAttention):
     def __init__(self, config, module_num):
         super().__init__(config)
         self.prune_mode = config.prune_mode
+        self.hard_masking = True
         if self.prune_mode is not None and self.prune_mode in TOKEN_PRUNERS.keys():
             self.pruner = TOKEN_PRUNERS[self.prune_mode](module_num, **config.prune_kwargs)
 
@@ -131,6 +132,10 @@ class PIBertSelfAttention(IBertSelfAttention):
             if len(new_attention_mask) == 3:
                 new_attention_mask, threshold, pruning_scores = new_attention_mask
         else:
+            new_attention_mask = attention_mask
+
+        # if softmasking, do not set attention mask
+        if not self.hard_masking:
             new_attention_mask = attention_mask
 
         # Mask heads if we want to
@@ -503,6 +508,10 @@ class PIBertModel(PIBertPreTrainedModel):
     def set_lambda_threshold(self, lambda_threshold):
         for layer in self.encoder.layer:
             layer.lambda_threshold = lambda_threshold
+
+    def set_hard_masking(self, hard_masking: bool):
+        for layer in self.encoder.layer:
+            layer.attention.self.hard_masking = hard_masking
 
     @add_start_docstrings_to_model_forward(PIBERT_INPUTS_DOCSTRING.format("(batch_size, sequence_length)"))
     @add_code_sample_docstrings(

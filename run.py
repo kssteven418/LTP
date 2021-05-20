@@ -7,27 +7,21 @@ import json
 
 def arg_parse():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--lr',
-                        type=float,
-                        default=None)
-    parser.add_argument('--arch',
-                        type=str,
+    parser.add_argument('--lr', type=float, default=None)
+    parser.add_argument('--arch', type=str, help='model architecture',
                         choices=[
 			    'kssteven/ibert-roberta-base',
                             'kssteven/ibert-roberta-large', 
 			    'roberta-base',
                             'roberta-large', 
                             'pibert-base',
-                            'pibert-lase',
-                        ],
-                        help='model architecture')
-    parser.add_argument('--task',
-                        type=str,
+                            'pibert-lase',]
+                        )
+    parser.add_argument('--task', type=str, help='finetuning task',
                         choices=[
 			    'RTE', 'SST2', 'MNLI', 'QNLI', 'COLA',
-                            'QQP', 'MRPC', 'STSB',
-                        ],
-                        help='finetuning task')
+                            'QQP', 'MRPC', 'STSB',]
+                        )
     parser.add_argument('--quantize', action='store_true')
     parser.add_argument('--eval', action='store_true')
     parser.add_argument('--debug', action='store_true')
@@ -46,6 +40,8 @@ def arg_parse():
     parser.add_argument('--save_steps', type=int, default=None)
     parser.add_argument('--lambda_threshold', type=float, default=None)
     parser.add_argument('--lr_threshold', type=float, default=None)
+    parser.add_argument('--masking_mode', type=str, 
+                        choices=['hard', 'soft', 'mixed'], default='hard') 
     parser.add_argument('--save_all', action='store_true') 
 
     args = parser.parse_args()
@@ -170,13 +166,14 @@ else:
         run_file = 'examples/text-classification/run_glue.py'
 
 subprocess_args = [
-    'python', run_file, \
-    '--model_name_or_path', model_path, \
-    '--task_name', args.task, \
-    '--do_eval', \
-    '--max_seq_length', '128', \
-    '--per_device_train_batch_size', str(args.bs), \
-    '--per_device_eval_batch_size', str(args.bs), \
+    'python', run_file,
+    '--model_name_or_path', model_path,
+    '--task_name', args.task,
+    '--do_eval',
+    '--max_seq_length', '128',
+    '--per_device_train_batch_size', str(args.bs),
+    '--per_device_eval_batch_size', str(args.bs),
+    '--masking_mode', args.masking_mode,
     ]
 
 # Training mode
@@ -217,6 +214,7 @@ if not args.eval:
 
     if args.num_training_data is not None:
         subprocess_args += ['--max_train_samples', str(args.num_training_data)]
+
 
 # Eval-only mode
 else:

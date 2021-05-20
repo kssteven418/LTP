@@ -535,6 +535,9 @@ class TrainingArguments:
     lambda_threshold: float = field(
         default=None, metadata={"help": "Regularization constant to control the retained tokens for threshold learning. None for fixed thresholds."}
     )
+    masking_mode: str = field(
+        default='hard', metadata={"help": "Masking mode. 'soft', 'hard' and 'mixed'. 'mixed executes the first half with soft masking and the remaining half with hard mask."}
+    )
 
     def __post_init__(self):
         # expand paths, if not os.makedirs("~/bar") will make directory
