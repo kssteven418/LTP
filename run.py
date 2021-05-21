@@ -151,9 +151,13 @@ if args.output_dir is None:
         output_file = '%s/%s/rate_%s/lr_%s' % (args.task, prune_mode, rate, lr)
     else:
         assert prune_mode == 'absolute_threshold'
-        output_file = '%s/%s/rate_%s/lambda_%s/lr_%s/tlr_%s' % (args.task, prune_mode, rate, args.lambda_threshold, lr, args.lr_threshold)
+        output_file = '%s/%s/rate_%s/lambda_%s/tlr_%s/lr_%s/wd_%s' % \
+                (args.task, prune_mode, rate, args.lambda_threshold, 
+                 args.lr_threshold, lr, args.weight_decay_threshold)
 else:
-    output_file = '%s/%s/rate_%s/lambda_%s/%s/lr_%s/tlr_%s' % (args.task, prune_mode, rate, args.lambda_threshold, args.output_dir, lr, args.lr_threshold)
+    output_file = '%s/%s/rate_%s/lambda_%s/%s/tlr_%s/lr_%s/WD_%S' % \
+            (args.task, prune_mode, rate, args.lambda_threshold, args.output_dir, 
+             args.lr_threshold, lr, args.weight_decay_threshold)
 
 
 output_path = os.path.join(output_dir, output_file)

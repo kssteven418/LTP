@@ -234,12 +234,9 @@ class PIBertLayer(IBertLayer):
             attention_output, attention_output_scaling_factor
         )
 
-        if self.lambda_threshold is not None and threshold is not None:
-            assert pruning_scores is not None
-            #layer_output = layer_output * soft_mask.unsqueeze(-1)
-            layer_output = GradientMask.apply(layer_output, threshold, pruning_scores, self.lambda_threshold,
-                    self.module_num) # remove this
-            #print(float(threshold))
+        layer_output = GradientMask.apply(layer_output, threshold, pruning_scores, self.lambda_threshold,
+                self.module_num) # remove this
+
         outputs = (layer_output,) + outputs
 
         return outputs, new_attention_mask

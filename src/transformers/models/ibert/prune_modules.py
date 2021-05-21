@@ -109,33 +109,47 @@ class RisingThresholdTokenPruner(ThresholdTokenPruner):
         self.keep_threshold = final_token_threshold * module_num / num_hidden_layers
         print(self.keep_threshold)
 
+import tensorflow as tf
+epoch = 1
+train_log_dir = "dump_tensorboard/train_log"
+train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
 class GradientMask(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, inputs, threshold, pruning_scores, lambda_threshold, num):
-        binary_mask = (pruning_scores > threshold).type(torch.float)
-        '''
-        import pickle
-        with open('dump_mask_soft/binary_mask_%d.pkl' % num, 'wb') as f:
-            pickle.dump(binary_mask.detach().cpu().numpy(), f)
-        with open('dump_mask_soft/pruning_scores_%d.pkl' % num, 'wb') as f:
-            pickle.dump(pruning_scores.detach().cpu().numpy(), f)
-        with open('dump_mask_soft/threshold_%d.pkl' % num, 'wb') as f:
-            pickle.dump(threshold.detach().cpu().numpy(), f)
-        '''
         ctx.threshold = threshold
         ctx.pruning_scores = pruning_scores
         ctx.lambda_threshold = lambda_threshold
         ctx.num = num #remove this
-        return inputs * binary_mask.unsqueeze(-1)
+
+        if lambda_threshold is None or threshold is None:
+            return inputs
+
+        assert pruning_scores is not None
+        #binary_mask = (pruning_scores > threshold).type(torch.float).detach()
+        return inputs
 
     @staticmethod
     def backward(ctx, grad_output):
+        global epoch
+
         threshold = ctx.threshold
         pruning_scores = ctx.pruning_scores
         lambda_threshold = ctx.lambda_threshold
         num = ctx.num
+
+        if lambda_threshold is None or threshold is None:
+            with train_summary_writer.as_default():
+                g_d = grad_output.detach()
+                tf.summary.scalar(f'grad_mean{num}', g_d.mean().item(), step=epoch)
+                tf.summary.scalar(f'grad_norm{num}', g_d.norm().item(), step=epoch)
+                tf.summary.scalar(f'grad_std{num}', g_d.std().item(), step=epoch)
+                if num == 1:
+                    epoch += 1
+
+            return grad_output, None, None, None, None
+        
         binary_mask = (pruning_scores > threshold).type(torch.float)
 
         temperature = 500
@@ -148,15 +162,18 @@ class GradientMask(torch.autograd.Function):
 
         lambda_threshold_scaled = (lambda_threshold * scale * binary_mask).mean()
 
-        '''
-        import pickle
-        with open('dump_mask_soft/scale_%d.pkl' % num, 'wb') as f:
-            pickle.dump(scale.detach().cpu().numpy(), f)
-        with open('dump_mask_soft/grad_%d.pkl' % num, 'wb') as f:
-            pickle.dump(grad_output.detach().cpu().numpy(), f)
-        '''
-
         grad_threshold = grad_output_scaled + lambda_threshold_scaled
+
+        with train_summary_writer.as_default():
+            tf.summary.scalar(f'threshold{num}', threshold.item(), step=epoch)
+            gt_d = grad_threshold.detach()
+            tf.summary.scalar(f'threshold_grad{num}', gt_d.std().item(), step=epoch)
+            g_d = grad_output.detach()
+            tf.summary.scalar(f'grad_mean{num}', g_d.mean().item(), step=epoch)
+            tf.summary.scalar(f'grad_norm{num}', g_d.norm().item(), step=epoch)
+            tf.summary.scalar(f'grad_std{num}', g_d.std().item(), step=epoch)
+            if num == 1:
+                epoch += 1
 
         return grad_output, -grad_threshold, None, None, None
 
@@ -171,20 +188,23 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
         example = [0, 0.00167, 0.00158, 0.00218, 0.00256, 0.00398, 0.00527, 0.00611,
                    0.00642, 0.00649, 0.00625, 0.006,
         ]
+        self.keep_threshold_base = torch.tensor(final_token_threshold * module_num / num_hidden_layers, device='cuda')
         self.keep_threshold = nn.Parameter(
-                torch.tensor(final_token_threshold * module_num / num_hidden_layers, device='cuda'), 
+                torch.zeros_like(self.keep_threshold_base,  device='cuda'),
+                #torch.tensor(final_token_threshold * module_num / num_hidden_layers, device='cuda'), 
                 #torch.tensor(example[module_num], device='cuda'), requires_grad=False # uncomment for debugging purpose
                 requires_grad=True,
         )
         self.scoring_mode = scoring_mode
         self.module_num = module_num
 
-        print(float(self.keep_threshold))
+        print(float(self.keep_threshold_base + self.keep_threshold))
 
     def update_attention_mask(self, attention_mask, attention_probs, sentence_lengths):
         sz = attention_probs.shape[-1]
         batch_size = attention_mask.shape[0]
-        if self.keep_threshold == 0:
+        keep_threshold = self.keep_threshold + self.keep_threshold_base
+        if keep_threshold == 0:
             return attention_mask
 
         # compute the pruning scores by summing the attention probabilities over all heads
@@ -198,9 +218,9 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
             pruning_scores = pruning_scores.mean(1)
 
         new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
-        new_attention_mask[pruning_scores.unsqueeze(1).unsqueeze(1) < max(1e-5, self.keep_threshold)] = -10000
+        new_attention_mask[pruning_scores.unsqueeze(1).unsqueeze(1) < max(1e-5, keep_threshold)] = -10000
 
-        return new_attention_mask, self.keep_threshold, pruning_scores
+        return new_attention_mask, keep_threshold, pruning_scores
 
 
 TOKEN_PRUNERS = {'topk': CascadeTokenPruner,

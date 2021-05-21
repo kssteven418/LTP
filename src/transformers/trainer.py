@@ -1824,7 +1824,8 @@ class Trainer:
         for i, layer in enumerate(self.model.ibert.encoder.layer):
             # just an adhoc code for debugging
             if 'AbsoluteThresholdTokenPruner' in str(type(layer.attention.self.pruner)):
-                print("%.5f" %float(layer.attention.self.pruner.keep_threshold))
+                print("%.5f" % \
+                    float(layer.attention.self.pruner.keep_threshold + layer.attention.self.pruner.keep_threshold_base))
 
         if self.args.tpu_metrics_debug or self.args.debug:
             # tpu-comment: Logging debug metrics for PyTorch/XLA (compile, execute times, ops, etc.)
