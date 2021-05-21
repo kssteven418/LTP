@@ -68,6 +68,7 @@ class PIBertSelfAttention(IBertSelfAttention):
         self.hard_masking = True
         if self.prune_mode is not None and self.prune_mode in TOKEN_PRUNERS.keys():
             self.pruner = TOKEN_PRUNERS[self.prune_mode](module_num, **config.prune_kwargs)
+        self.module_num = module_num
 
     def forward(
         self,

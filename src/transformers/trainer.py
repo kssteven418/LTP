@@ -673,7 +673,8 @@ class Trainer:
             optimizer_grouped_parameters_thresholds = [
                 {
                     "params": [p for n, p in self.model.named_parameters() if n in decay_parameters and 'threshold' in n],
-                    "weight_decay": self.args.weight_decay,
+                    #"weight_decay": self.args.weight_decay,
+                    "weight_decay": self.args.weight_decay_threshold,
                 },
             
             ]
@@ -738,12 +739,15 @@ class Trainer:
                 num_training_steps=num_training_steps,
             )
 
+            threshold_training_steps = num_training_steps
+            if self.args.masking_mode == 'mixed':
+                threshold_training_steps = 0.5 * num_training_steps
+
             self.lr_scheduler_threshold = get_scheduler(
                 self.args.lr_scheduler_type,
                 self.optimizer_threshold,
                 num_warmup_steps=warmup_steps,
-                #num_training_steps=num_training_steps * 0.5,
-                num_training_steps=num_training_steps,
+                num_training_steps=threshold_training_steps,
             )
 
     def num_examples(self, dataloader: DataLoader) -> int:

@@ -39,6 +39,7 @@ def arg_parse():
     parser.add_argument('--num_training_data', type=int, default=None)
     parser.add_argument('--save_steps', type=int, default=None)
     parser.add_argument('--lambda_threshold', type=float, default=None)
+    parser.add_argument('--weight_decay_threshold', type=float, default=None)
     parser.add_argument('--lr_threshold', type=float, default=None)
     parser.add_argument('--masking_mode', type=str, 
                         choices=['hard', 'soft', 'mixed'], default='hard') 
@@ -205,6 +206,9 @@ if not args.eval:
 
     if args.lr_threshold is not None:
         subprocess_args += ['--lr_threshold', str(args.lr_threshold)]
+
+    if args.weight_decay_threshold is not None:
+        subprocess_args += ['--weight_decay_threshold', str(args.weight_decay_threshold)]
 
     if args.lambda_threshold is not None:
         subprocess_args += ['--lambda_threshold', str(args.lambda_threshold)]
