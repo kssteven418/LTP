@@ -1,6 +1,6 @@
 All the methods below require you to have a checkpoint file finetuned on a downstream task.
 
-## Run Top-k
+# Run Top-k
 Add the following lines in `{CKPT}/config.json`.
 ```
 "prune_mode": "topk",
@@ -13,14 +13,15 @@ You can also assign negative number as keep rate for each layer will be assigned
 Then, run the following command.
 
 ```
-# set task, lr, cuda, bs (batch size) accordingly
-python run-pibert.py --arch pibert-base --task MRPC --restore {CKPT} --lr 1e-5 --cuda 1 --bs 64
+python run.py --arch pibert-base --task {TASK} --restore{CKPT} --lr 2e-5 --bs 64 --masking_mode hard --epoch 5 --save_step 500
 ```
 
-This will checkpoint the final model to `ibert_checkpoints/base/{TASK}/topk/rate_{keep_token_rate}/lr_{LR}`
+Hyperparameter space: `lr = {0.5, 1, 2}e-5`, `bs 64`, `epoch 10` for small datasets, `epoch 5` (with `save_step 500`) for large datasets.
+For `token_keep_rate` in the config file, 0.4 ~ -0.4 should work well for SST2 and MRPC.
+The final model will be checkpointed in `{CKPT}/topk/lr_{LR}`.
 
 
-## Run Absolute Threshold
+# Run Non-leanrable (Baseline) Absolute Threshold
 Add the following lines in `{CKPT}/config.json`.
 ```
 "prune_mode": "absolute_threshold",
@@ -30,20 +31,52 @@ Add the following lines in `{CKPT}/config.json`.
 
 `final_token_threshold` determines the token threshold of the last layer, and the thresholds of the remaining layers will be linearly scaled.
 
-1. To run the baseline (non-learnable) threshold mode, use the following command:
+
+Run the following command:
 ```
-# set task, lr, cuda, bs (batch size) accordingly
-python run-pibert.py --arch pibert-base --task MRPC --restore {CKPT} --lr 1e-5 --cuda 3 --bs 64
+python run.py --arch pibert-base --task {TASK} --restore {CKPT} --lr {LR} --bs 64 --masking_mode hard --epoch 5 --save_step 500
 ```
 
-2. To run the learnable threshold mode, use the following command:
+Hyperparameter space: `lr = {0.5, 1, 2}e-5`, `bs 64`, `epoch 10` (without `save_step 500`)for small datasets, `epoch 5` (with `save_step 500`) for large datasets.
+For `final_token_threshold` in the config file, 0.006 ~ 0.016 should work well for SST2 and MRPC.
+The final model will be checkpointed in `{CKPT}/hard/lr_{LR}`.
+
+# Run Learnable Absolute Threshold
+Add the following lines in `{CKPT}/config.json` (Same as non-learnable mode).
 ```
-# set task, lr, cuda, bs (batch size), lr_threshold, lambda accordingly
-python run-pibert.py --arch pibert-base --task MRPC --restore {CKPT} --lr 1e-5 --lr_threshold 1e-5 --lambda 1e-5 --cuda 3 --bs 64
+"prune_mode": "absolute_threshold",
+"final_token_threshold": 0.01, 
+"scoring_mode": "mean",
 ```
 
-Note that if `lambda` is set as some value, the code will automatically run with the learnable mode. 
-This parameter determines the number of tokens to be pruned (the higher the value, the more tokens to be pruned).
-The learable mode requires you an additional parameter `lr_threshold`, which determines the learning rate for the thresholds.
-Model parameters other than the thresholds will still be trained with `lr`.
-This will checkpoint the final model to `ibert_checkpoints/base/MRPC/absolute_threshold/rate_0.004/lambda_{lambda}/lr_{lr}/tlr_{lr_threshold}`.
+`final_token_threshold` determines the token threshold of the last layer, and the thresholds of the remaining layers will be linearly scaled.
+
+The learnable mode consists of 2 stages
+
+## 1. Soft threshold using sigmoid
+In this stage, instead of masking the tokens, we apply soft masking on the tokens to be pruned by multiplying `sigmoid((score - threshold) / T)` at the end of each feed forward layers.
+
+Run the following command:
+```
+python run.py --arch pibert-base --task {TASK} --restore {CKPT} --lr 2e-5 \
+  --lambda 0.15 --weight_decay 0 --bs 64 --masking_mode soft --epoch 1 --save_step 100 --no_load
+```
+
+Hyperparameter space: `lr = 2e-5`, `bs 64`, `epoch 1`, `weight_decay 0` (`lr`, `epoch` can be modified). 
+Note that `--no_load` flag will not load the best model at the end of the training (i.e., the final model will be the one at the end of training).
+For `final_token_threshold` in the config file, `0.01` worked well.
+For `lambda`, 0.01 ~ 0.2 worked well for SST2.
+The final model will be checkpointed in `{CKPT_soft} = ibert_checkpoints/base/{TASK}/absolute_threshold/rate_{final_token_threshold}/lambda_0.145/lr_2e-05`.
+
+
+
+## 2. Hard threshold
+Because the model trained above does not mask tokens completely, we need another stage of finetuning after masking those tokens (i.e., assigning `-10000` to those tokens). 
+
+Run the following command:
+```
+python run.py --arch pibert-base --task {TASK} --restore {CKPT_soft} --lr {LR} --bs 64 --masking_mode hard --epoch 5 --save_step 500
+```
+
+Hyperparameter space: `lr = {0.5, 1, 2}e-5`, `bs 64`, `epoch 10` (with `save_step 500`) for small datasets, `epoch 5` (with `save_step 500`) for large datasets.
+The final model will be checkpointed in `{CKPT_soft}/hard/lr_{LR}`.
