@@ -139,8 +139,6 @@ class PIBertSelfAttention(IBertSelfAttention):
         #if not self.hard_masking:
         if not self.hard_masking and self.training:
             new_attention_mask = attention_mask
-        '''
-        '''
 
         # Mask heads if we want to
         if head_mask is not None:
@@ -245,8 +243,6 @@ class PIBertLayer(IBertLayer):
             if pruning_scores is not None and threshold is not None:
                 self.mask = torch.sigmoid((pruning_scores - threshold) / temperature)
                 layer_output = layer_output * self.mask.unsqueeze(-1)
-        '''
-        '''
             
         outputs = (layer_output,) + outputs
 

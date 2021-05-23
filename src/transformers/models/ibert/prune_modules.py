@@ -109,10 +109,12 @@ class RisingThresholdTokenPruner(ThresholdTokenPruner):
         self.keep_threshold = final_token_threshold * module_num / num_hidden_layers
         print(self.keep_threshold)
 
+'''
 import tensorflow as tf
 epoch = 1
 train_log_dir = "dump_tensorboard/train_log"
 train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+'''
 
 class GradientMask(torch.autograd.Function):
 
@@ -142,11 +144,13 @@ class GradientMask(torch.autograd.Function):
         if lambda_threshold is None or threshold is None:
             with train_summary_writer.as_default():
                 g_d = grad_output.detach()
+                '''
                 tf.summary.scalar(f'grad_mean{num}', g_d.mean().item(), step=epoch)
                 tf.summary.scalar(f'grad_norm{num}', g_d.norm().item(), step=epoch)
                 tf.summary.scalar(f'grad_std{num}', g_d.std().item(), step=epoch)
                 if num == 1:
                     epoch += 1
+                '''
 
             return grad_output, None, None, None, None
         

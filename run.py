@@ -149,7 +149,9 @@ else:
 #output_file = '%s/%s/tkr_%s/%s' % (args.task, prune_mode, rate, lr)
 if args.output_dir is None:
     if prune_mode == 'topk':
-        output_file = '%s/%s/rate_%s/lr_%s' % (args.task, prune_mode, rate, lr)
+        #output_file = '%s/%s/rate_%s/lr_%s' % (args.task, prune_mode, rate, lr)
+        output_file = os.path.join(args.restore_file, f"topk/lr_{lr}")
+        output_path = output_file
     else:
         assert prune_mode == 'absolute_threshold'
         if args.masking_mode == 'soft':
