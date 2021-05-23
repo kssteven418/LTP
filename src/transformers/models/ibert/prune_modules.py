@@ -167,7 +167,7 @@ class GradientMask(torch.autograd.Function):
         with train_summary_writer.as_default():
             tf.summary.scalar(f'threshold{num}', threshold.item(), step=epoch)
             gt_d = grad_threshold.detach()
-            tf.summary.scalar(f'threshold_grad{num}', gt_d.std().item(), step=epoch)
+            tf.summary.scalar(f'threshold_grad{num}', gt_d.item(), step=epoch)
             g_d = grad_output.detach()
             tf.summary.scalar(f'grad_mean{num}', g_d.mean().item(), step=epoch)
             tf.summary.scalar(f'grad_norm{num}', g_d.norm().item(), step=epoch)
