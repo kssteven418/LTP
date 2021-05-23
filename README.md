@@ -66,7 +66,7 @@ Hyperparameter space: `lr = 2e-5`, `bs 64`, `epoch 1`, `weight_decay 0` (`lr`, `
 Note that `--no_load` flag will not load the best model at the end of the training (i.e., the final model will be the one at the end of training).
 For `final_token_threshold` in the config file, `0.01` worked well.
 For `lambda`, 0.01 ~ 0.2 worked well for SST2.
-The final model will be checkpointed in `{CKPT_soft} = ibert_checkpoints/base/{TASK}/absolute_threshold/rate_{final_token_threshold}/lambda_0.145/lr_2e-05`.
+The final model will be checkpointed in `{CKPT_soft} = ibert_checkpoints/base/{TASK}/absolute_threshold/rate_{final_token_threshold}/lambda_{lambda}/lr_{lr}`.
 
 
 
