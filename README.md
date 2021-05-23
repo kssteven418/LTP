@@ -62,7 +62,7 @@ python run.py --arch pibert-base --task {TASK} --restore {CKPT} --lr 2e-5 \
   --lambda 0.15 --weight_decay 0 --bs 64 --masking_mode soft --epoch 1 --save_step 100 --no_load
 ```
 
-Hyperparameter space: `lr = 2e-5`, `bs 64`, `epoch 1`, `weight_decay 0` (`lr`, `epoch` can be modified). 
+Hyperparameter space: `lr = 2e-5`, `bs 64`, `epoch 1`, `weight_decay 0` (`lr`, `epoch` can be modified, for small dataset like MRPC, `lr 2e-5` and `epoch 10` can work). 
 Note that `--no_load` flag will not load the best model at the end of the training (i.e., the final model will be the one at the end of training).
 For `final_token_threshold` in the config file, `0.01` worked well.
 For `lambda`, 0.01 ~ 0.2 worked well for SST2.
