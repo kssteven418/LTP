@@ -136,8 +136,11 @@ class PIBertSelfAttention(IBertSelfAttention):
             new_attention_mask = attention_mask
 
         # if softmasking, do not set attention mask
-        if not self.hard_masking:
+        #if not self.hard_masking:
+        if not self.hard_masking and self.training:
             new_attention_mask = attention_mask
+        '''
+        '''
 
         # Mask heads if we want to
         if head_mask is not None:
@@ -205,6 +208,7 @@ class PIBertLayer(IBertLayer):
         self.attention = PIBertAttention(config, module_num)
         self.lambda_threshold = None
         self.module_num = module_num
+        self.mask = None
 
     def forward(
         self,
@@ -234,9 +238,16 @@ class PIBertLayer(IBertLayer):
             attention_output, attention_output_scaling_factor
         )
 
-        layer_output = GradientMask.apply(layer_output, threshold, pruning_scores, self.lambda_threshold,
-                self.module_num) # remove this
-
+        #layer_output = GradientMask.apply(layer_output, threshold, pruning_scores, self.lambda_threshold,
+        #        self.module_num) # remove this
+        if not self.hard_masking and self.training:
+            temperature = 1e-3
+            if pruning_scores is not None and threshold is not None:
+                self.mask = torch.sigmoid((pruning_scores - threshold) / temperature)
+                layer_output = layer_output * self.mask.unsqueeze(-1)
+        '''
+        '''
+            
         outputs = (layer_output,) + outputs
 
         return outputs, new_attention_mask
@@ -510,6 +521,7 @@ class PIBertModel(PIBertPreTrainedModel):
     def set_hard_masking(self, hard_masking: bool):
         for layer in self.encoder.layer:
             layer.attention.self.hard_masking = hard_masking
+            layer.hard_masking = hard_masking
 
     @add_start_docstrings_to_model_forward(PIBERT_INPUTS_DOCSTRING.format("(batch_size, sequence_length)"))
     @add_code_sample_docstrings(

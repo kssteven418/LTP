@@ -1103,7 +1103,7 @@ class Trainer:
         model.zero_grad()
 
         # TODO this is an adhoc solution
-        model.ibert.set_lambda_threshold(self.args.lambda_threshold)
+        #model.ibert.set_lambda_threshold(self.args.lambda_threshold)
         if self.args.masking_mode == 'hard':
             model.ibert.set_hard_masking(True)
         elif self.args.masking_mode == 'soft':
@@ -1264,6 +1264,13 @@ class Trainer:
                 self.deepspeed.load_checkpoint(
                     self.state.best_model_checkpoint, load_optimizer_states=False, load_lr_scheduler_states=False
                 )
+
+        if self.args.masking_mode == 'hard':
+            self.model.ibert.set_hard_masking(True)
+        elif self.args.masking_mode == 'soft':
+            self.model.ibert.set_hard_masking(False)
+        else:
+            raise NotImplementedError
 
         metrics = speed_metrics("train", start_time, self.state.max_steps)
         if self._total_flos is not None:
@@ -1577,6 +1584,14 @@ class Trainer:
         if self.args.gradient_accumulation_steps > 1 and not self.deepspeed:
             # deepspeed handles loss scaling by gradient_accumulation_steps in its `backward`
             loss = loss / self.args.gradient_accumulation_steps
+
+        if self.args.masking_mode == 'soft':
+            loss_reg = 0
+            for layer in self.model.ibert.encoder.layer:
+                if layer.mask is not None:
+                    loss_reg += layer.mask.mean() #TODO right?
+            #print(loss_reg)
+            loss += self.args.lambda_threshold * loss_reg
 
         if self.use_amp:
             self.scaler.scale(loss).backward()

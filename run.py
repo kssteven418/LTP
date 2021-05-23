@@ -44,6 +44,7 @@ def arg_parse():
     parser.add_argument('--masking_mode', type=str, 
                         choices=['hard', 'soft', 'mixed'], default='hard') 
     parser.add_argument('--save_all', action='store_true') 
+    parser.add_argument('--no_load_best', action='store_true') 
 
     args = parser.parse_args()
     return args
@@ -151,16 +152,27 @@ if args.output_dir is None:
         output_file = '%s/%s/rate_%s/lr_%s' % (args.task, prune_mode, rate, lr)
     else:
         assert prune_mode == 'absolute_threshold'
-        output_file = '%s/%s/rate_%s/lambda_%s/tlr_%s/lr_%s/wd_%s' % \
+        if args.masking_mode == 'soft':
+            output_file = f"{args.task}/{prune_mode}/rate_{rate}/lambda_{args.lambda_threshold}/lr_{lr}"
+            output_path = os.path.join(output_dir, output_file)
+        elif args.masking_mode == 'hard':
+            output_file = os.path.join(args.restore_file, f"hard/lr_{lr}")
+            output_path = output_file
+        else:
+            raise NotImplementedError
+        '''
+        output_file = '%s/%s/rate_%s/lambda_%s/tlr_%s/lr_%s/%s' % \
                 (args.task, prune_mode, rate, args.lambda_threshold, 
-                 args.lr_threshold, lr, args.weight_decay_threshold)
+                 args.lr_threshold, lr, args.masking_mode)
+        '''
 else:
-    output_file = '%s/%s/rate_%s/lambda_%s/%s/tlr_%s/lr_%s/WD_%S' % \
+    output_file = '%s/%s/rate_%s/lambda_%s/%s/tlr_%s/lr_%s/%s' % \
             (args.task, prune_mode, rate, args.lambda_threshold, args.output_dir, 
-             args.lr_threshold, lr, args.weight_decay_threshold)
+             args.lr_threshold, lr, args.masking_mode)
+    output_path = os.path.join(output_dir, output_file)
 
+print('output path: ', output_path)
 
-output_path = os.path.join(output_dir, output_file)
 
 if args.sparsity:
     run_file = 'examples/text-classification/run_glue_sparsity_temp.py' #TODO change this
@@ -199,12 +211,13 @@ if not args.eval:
         subprocess_args += ['--logging_strategy', 'steps'] 
         subprocess_args += ['--logging_steps', str(args.save_steps)]
     subprocess_args += [
-                   '--load_best_model_at_end', 'True',
                    '--metric_for_best_model', metric,
                    '--learning_rate', lr, 
                    '--num_train_epochs', max_epochs, 
                    '--output_dir', output_path, 
                    ]
+    if not args.no_load_best:
+        subprocess_args += ['--load_best_model_at_end', 'True']
     if not args.save_all:
         subprocess_args += ['--save_total_limit', '3']
 
