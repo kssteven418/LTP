@@ -519,7 +519,7 @@ def main():
             eval_datasets.append(mm_dataset)
 
         for eval_dataset, task in zip(eval_datasets, tasks):
-            prefix = "eval" if task is not "mnli-mm" else "eval_mm"
+            prefix = "eval" if task != "mnli-mm" else "eval_mm"
             metrics = trainer.evaluate(eval_dataset=eval_dataset)
 
             max_val_samples = data_args.max_val_samples if data_args.max_val_samples is not None else len(eval_dataset)
