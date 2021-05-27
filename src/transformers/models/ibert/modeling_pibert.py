@@ -207,6 +207,7 @@ class PIBertLayer(IBertLayer):
         self.lambda_threshold = None
         self.module_num = module_num
         self.mask = None
+        self.hard_masking = False
 
     def forward(
         self,
@@ -457,6 +458,7 @@ class PIBertModel(PIBertPreTrainedModel):
         self.init_weights()
 
         self.reset_macs()
+        self.hard_masking = False
 
     def reset_macs(self):
         self.macs = []
