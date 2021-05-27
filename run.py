@@ -84,6 +84,7 @@ task_specs = {
     'RTE' : {
         #'save_steps': '78',
         'lr': '4e-5',
+        'metric': 'eval_accuracy',
     },
     'MRPC' : {
         #'save_steps': '115',
@@ -92,6 +93,7 @@ task_specs = {
     },
     'COLA' : {
         #'save_steps': '268',
+        'metric': 'eval_matthews_correlation',
         'lr': '4e-5',
     },
     'STSB' : {
