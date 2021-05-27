@@ -97,6 +97,7 @@ task_specs = {
     'STSB' : {
         #'save_steps': '180',
         'lr': '4e-5',
+        'metric': 'eval_combined_score',
     },
     'SST2' : {
         #'save_steps': '2105',
@@ -111,6 +112,7 @@ task_specs = {
     'QQP' : {
         #'save_steps': '11371',
         'lr': '4e-5',
+        'metric': 'eval_combined_score',
     },
     'MNLI' : {
         #'save_steps': '12272',
