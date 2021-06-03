@@ -208,6 +208,7 @@ class PIBertLayer(IBertLayer):
         self.module_num = module_num
         self.mask = None
         self.hard_masking = False
+        self.temperature = 1e-3
 
     def forward(
         self,
@@ -240,9 +241,8 @@ class PIBertLayer(IBertLayer):
         #layer_output = GradientMask.apply(layer_output, threshold, pruning_scores, self.lambda_threshold,
         #        self.module_num) # remove this
         if not self.hard_masking and self.training:
-            temperature = 1e-3
             if pruning_scores is not None and threshold is not None:
-                self.mask = torch.sigmoid((pruning_scores - threshold) / temperature)
+                self.mask = torch.sigmoid((pruning_scores - threshold) / self.temperature)
                 layer_output = layer_output * self.mask.unsqueeze(-1)
             
         outputs = (layer_output,) + outputs
@@ -459,6 +459,10 @@ class PIBertModel(PIBertPreTrainedModel):
 
         self.reset_macs()
         self.hard_masking = False
+
+    def set_temperature(self, temperature):
+        for layer in self.encoder.layer:
+            layer.temperature = temperature
 
     def reset_macs(self):
         self.macs = []

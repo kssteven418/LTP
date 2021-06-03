@@ -43,6 +43,7 @@ def arg_parse():
     parser.add_argument('--lr_threshold', type=float, default=None)
     parser.add_argument('--masking_mode', type=str, 
                         choices=['hard', 'soft', 'mixed'], default='hard') 
+    parser.add_argument('--temperature', type=float, default=None)
     parser.add_argument('--save_all', action='store_true') 
     parser.add_argument('--no_load_best', action='store_true') 
 
@@ -159,7 +160,8 @@ if args.output_dir is None:
     else:
         assert prune_mode == 'absolute_threshold'
         if args.masking_mode == 'soft':
-            output_file = f"{args.task}/{prune_mode}/rate_{rate}/lambda_{args.lambda_threshold}/lr_{lr}"
+            _temperature = args.temperature if args.temperature is not None else 1e-3
+            output_file = f"{args.task}/{prune_mode}/rate_{rate}/temperautre_{_temperature}/lambda_{args.lambda_threshold}/lr_{lr}"
             output_path = os.path.join(output_dir, output_file)
         elif args.masking_mode == 'hard':
             output_file = os.path.join(args.restore_file, f"hard/lr_{lr}")
@@ -241,6 +243,9 @@ if not args.eval:
 
     if args.num_training_data is not None:
         subprocess_args += ['--max_train_samples', str(args.num_training_data)]
+
+    if args.temperature is not None:
+        subprocess_args += ['--temperature', str(args.temperature)]
 
 
 # Eval-only mode

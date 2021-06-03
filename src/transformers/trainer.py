@@ -1111,6 +1111,7 @@ class Trainer:
         else:
             raise NotImplementedError
 
+        model.ibert.set_temperature(self.args.temperature)
 
         self.control = self.callback_handler.on_train_begin(self.args, self.state, self.control)
 
@@ -1271,6 +1272,8 @@ class Trainer:
             self.model.ibert.set_hard_masking(False)
         else:
             raise NotImplementedError
+
+        model.ibert.set_temperature(self.args.temperature)
 
         metrics = speed_metrics("train", start_time, self.state.max_steps)
         if self._total_flos is not None:
@@ -1833,6 +1836,7 @@ class Trainer:
         macs_baseline = sum(self.model.ibert.macs_baseline) / len(self.model.ibert.macs_baseline)
         output.metrics.update({'relative_macs': macs / macs_baseline})
         output.metrics.update({'gflops': macs_baseline * 2 / 1e9})
+        seqlen = self.model.ibert.seqlen_baseline
         self.model.ibert.print_sentence_lengths()
         self.model.ibert.reset_macs()
         self.log(output.metrics)

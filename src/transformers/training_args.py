@@ -541,6 +541,9 @@ class TrainingArguments:
     masking_mode: str = field(
         default='hard', metadata={"help": "Masking mode. 'soft', 'hard' and 'mixed'. 'mixed executes the first half with soft masking and the remaining half with hard mask."}
     )
+    temperature: float = field(
+        default=1e-3, metadata={"help": "Temperature for the sigmoid of soft masking."}
+    )
 
     def __post_init__(self):
         # expand paths, if not os.makedirs("~/bar") will make directory
