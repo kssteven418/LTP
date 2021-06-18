@@ -713,7 +713,6 @@ class Trainer:
             else:
                 self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
                 self.optimizer_threshold = optimizer_cls(optimizer_grouped_parameters_thresholds, **optimizer_threshold_kwargs)
-            print(self.optimizer_threshold)
 
         if is_sagemaker_mp_enabled():
             self.optimizer = smp.DistributedOptimizer(self.optimizer)
@@ -1593,7 +1592,6 @@ class Trainer:
             for layer in self.model.ibert.encoder.layer:
                 if layer.mask is not None:
                     loss_reg += layer.mask.mean() #TODO right?
-            #print(loss_reg)
             loss += self.args.lambda_threshold * loss_reg
 
         if self.use_amp:
@@ -1844,8 +1842,9 @@ class Trainer:
         for i, layer in enumerate(self.model.ibert.encoder.layer):
             # just an adhoc code for debugging
             if 'AbsoluteThresholdTokenPruner' in str(type(layer.attention.self.pruner)):
-                print("%.5f" % \
+                logger.info("Layer %d Treshold: %.5f" % (i,
                     float(layer.attention.self.pruner.keep_threshold + layer.attention.self.pruner.keep_threshold_base))
+                )
 
         if self.args.tpu_metrics_debug or self.args.debug:
             # tpu-comment: Logging debug metrics for PyTorch/XLA (compile, execute times, ops, etc.)

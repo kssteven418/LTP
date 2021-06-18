@@ -47,7 +47,7 @@ from .modeling_ibert import IBertEmbeddings, IBertSelfAttention,  IBertPooler, I
     IBertEncoder, IBertPreTrainedModel
 
 from .pibert_model_output import PIBertModelOutput, PIBertSequenceClassifierOutput, PIBertEncoderOutput
-from .prune_modules import TOKEN_PRUNERS, GradientMask
+from .prune_modules import TOKEN_PRUNERS
 
 logger = logging.get_logger(__name__)
 
@@ -238,8 +238,6 @@ class PIBertLayer(IBertLayer):
             attention_output, attention_output_scaling_factor
         )
 
-        #layer_output = GradientMask.apply(layer_output, threshold, pruning_scores, self.lambda_threshold,
-        #        self.module_num) # remove this
         if not self.hard_masking and self.training:
             if pruning_scores is not None and threshold is not None:
                 self.mask = torch.sigmoid((pruning_scores - threshold) / self.temperature)
@@ -471,11 +469,10 @@ class PIBertModel(PIBertPreTrainedModel):
         self.seqlen_baseline = 0
 
     def print_sentence_lengths(self):
-        print()
         if self.seqlen_baseline == 0:
             return
         for i, seqlen in self.seqlen.items():
-            print("Layer %d: %.3f (%d/%d)" % (i, seqlen / self.seqlen_baseline * 100,
+            logger.info("Layer %d seqlen: %.3f%% (%d/%d)" % (i, seqlen / self.seqlen_baseline * 100,
                   seqlen, self.seqlen_baseline))
 
     def compute_macs(self, attention_mask, return_baseline=False):
