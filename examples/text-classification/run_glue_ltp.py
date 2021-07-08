@@ -420,7 +420,7 @@ def main():
         preds = np.squeeze(preds) if is_regression else np.argmax(preds, axis=1)
 
         date_time = datetime.now().strftime("%m%d%Y-%H%M%S")
-        filename = f"pibert_match_data_{data_args.task_name}_{date_time}.npy"
+        filename = f"ltp_match_data_{data_args.task_name}_{date_time}.npy"
         output_pred_file = os.path.join(training_args.output_dir, filename)
         np.save(output_pred_file, np.column_stack([preds, p.label_ids]))
         time.sleep(1)
@@ -431,11 +431,11 @@ def main():
             if len(result) > 1:
                 result["combined_score"] = np.mean(list(result.values())).item()
             date_time = datetime.now().strftime("%m%d%Y-%H%M%S")
-            filename = f"pibert_predictions_{data_args.task_name}_{date_time}.npy"
+            filename = f"ltp_predictions_{data_args.task_name}_{date_time}.npy"
 
             if isinstance(p.predictions, tuple) and len(p.predictions) > 1:
                 for i in range(1, len(p.predictions)):
-                    filename = f"pibert_predictions_{data_args.task_name}_{date_time}.npy"
+                    filename = f"ltp_predictions_{data_args.task_name}_{date_time}.npy"
                     output_pred_file = os.path.join(training_args.output_dir, filename)
                     np.save(output_pred_file, p.predictions[i])
                     time.sleep(1)
@@ -444,7 +444,7 @@ def main():
             if isinstance(p.predictions, tuple) and len(p.predictions) > 1:
                 for i in range(1, len(p.predictions)):
                     date_time = datetime.now().strftime("%m%d%Y-%H%M%S")
-                    filename = f"pibert_predictions_{regression}_{date_time}.npy"
+                    filename = f"ltp_predictions_{regression}_{date_time}.npy"
                     output_pred_file = os.path.join(training_args.output_dir, filename)
                     np.save(output_pred_file, p.predictions[i])
                     time.sleep(1)
@@ -454,7 +454,7 @@ def main():
             if isinstance(p.predictions, tuple) and len(p.predictions) > 1:
                 for i in range(1, len(p.predictions)):
                     date_time = datetime.now().strftime("%m%d%Y-%H%M%S")
-                    filename = f"pibert_predictions_classification_{date_time}.npy"
+                    filename = f"ltp_predictions_classification_{date_time}.npy"
                     output_pred_file = os.path.join(training_args.output_dir, filename)
                     np.save(output_pred_file, p.predictions[i])
                     time.sleep(1)
