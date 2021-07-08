@@ -86,7 +86,7 @@ The final model will be checkpointed in `{CKPT_soft}/hard/lr_{LR}`.
 
 
 # Run Baseline Methods
-We further provide code for the baseline methods used in ourpaper (i.e., top-k and manual threshold).
+We additionally provide code to reproduce the baseline methods used in our paper (i.e., top-k and manual threshold).
 
 ## Top-k Token Pruning
 Add the following lines in `{CKPT}/config.json`.
