@@ -57,7 +57,7 @@ This trains the thresholds as well as the model parameters to search for the bes
 Run the following command:
 ```
 python run.py --arch ltp-base --task {TASK} --restore {CKPT} --lr 2e-5 --temperature {T}\
-  --lambda 0.15 --weight_decay 0 --bs 64 --masking_mode soft --epoch {epoch} --save_step 100 --no_load
+  --lambda 0.1 --weight_decay 0 --bs 64 --masking_mode soft --epoch {epoch} --save_step 100 --no_load
 ```
 
 * `{TASK}`: RTE, MRPC, STSB, SST2, QNLI, QQP, MNLI
