@@ -1,5 +1,10 @@
 # LTP: Learned Token Pruning for Transformers
 
+![Screenshot from 2021-07-08 13-39-02](https://user-images.githubusercontent.com/50283958/124863552-376e7e80-dff2-11eb-8930-707664858adc.png)
+
+![Screenshot from 2021-07-08 13-39-28](https://user-images.githubusercontent.com/50283958/124863602-540ab680-dff2-11eb-99e0-292c667b654a.png)
+
+**Check our [paper](https://arxiv.org/abs/2107.00910) for more details.**
 
 # Installation
 We follow the same installation procedure as the original [Huggingface transformer](https://github.com/huggingface/transformers) repo.
@@ -12,7 +17,7 @@ pip install -e .  # in the top directory
 LTP is implemented on top of Huggingface transformer's [I-BERT implementation](https://github.com/huggingface/transformers/tree/master/src/transformers/models/ibert).
 Therefore, we first need to generate a checkpoint file of ibert finetuned on the target downstream task.
 While you can do this on the original Huggingface repository, 
-we also support our base branch `ltp/base` where you can run the following code to finetune `ibert` on the GLUE tasks.
+we also support our [base branch](https://github.com/kssteven418/LTP/tree/ltp/base) `ltp/base` where you can run the following code to finetune `ibert` on the GLUE tasks.
 
 ```
 git checkout ltp/base
