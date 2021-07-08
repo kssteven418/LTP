@@ -1,14 +1,36 @@
 # LTP: Learned Token Pruning for Transformers
 
+
 # Installation
-We follow the same installation procedure as the original [huggingface transformer](https://github.com/huggingface/transformers) repo.
+We follow the same installation procedure as the original [Huggingface transformer](https://github.com/huggingface/transformers) repo.
 ```
 pip install sklearn scipy datasets torch
 pip install -e .  # in the top directory
 ```
 
+# Prepare Checkpoints
+LTP is implemented on top of Huggingface transformer's [I-BERT implementation](https://github.com/huggingface/transformers/tree/master/src/transformers/models/ibert).
+Therefore, we first need to generate a checkpoint file of ibert finetuned on the target downstream task.
+While you can do this on the original Huggingface repository, 
+we also support our base branch `ltp/base` where you can run the following code to finetune `ibert` on the GLUE tasks.
+
+```
+git checkout ltp/base
+cd examples/text-classification
+python run_glue.py --model_name_or_path kssteven/ibert-roberta-base --output_dir {CKPT} --task {TASK} --do_train --do_eval {--some_more_arguments}
+```
+
+* `{TASK}`: RTE, MRPC, STSB, SST2, QNLI, QQP, MNLI
+* Please refer to the [Huggingface tutorial](https://huggingface.co/transformers/v2.3.0/examples.html) and the [official documentation](https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments) for more details in arguments and hyperparameters.
+* Note that as default ibert behaves the same as roberta (see this [tutorial](https://huggingface.co/kssteven/ibert-roberta-base)), 
+hence the resulting model will be the same as `roberta-base` finetuned on the target GLUE task.
+
+The final model will be checkpointed in `{CKPT}`. 
+* Remove `{CKPT}/trainer_state.json`.
+* In the configuration file `{CKPT}/config.json`, change (1) `"architectures"` to `["LTPForSequenceClassification"]` and (2) `"model_type"` to `"ltp"`.
+
+
 # Run Learned Token Pruning
-Prepare a checkpoint file that has been finetuned on the target downstream task. 
 Add the following lines in the configuration file `{CKPT}/config.json`.
 ```
 "prune_mode": "absolute_threshold",
@@ -59,8 +81,9 @@ The final model will be checkpointed in `{CKPT_soft}/hard/lr_{LR}`.
 
 
 # Run Baseline Methods
+We further provide code for the baseline methods used in ourpaper (i.e., top-k and manual threshold).
 
-# Top-k Token Pruning
+## Top-k Token Pruning
 Add the following lines in `{CKPT}/config.json`.
 ```
 "prune_mode": "topk",
@@ -85,7 +108,7 @@ python run.py --arch pibert-base --task {TASK} --restore {CKPT} --lr {LR} --bs 6
 The final model will be checkpointed in `{CKPT}/topk/lr_{LR}`.
 
 
-# Non-leanrable (Manual) Threshold Pruning
+## Manual(Non-leanrable) Threshold Pruning
 Add the following lines in `{CKPT}/config.json`.
 ```
 "prune_mode": "absolute_threshold",
