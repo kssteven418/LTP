@@ -89,6 +89,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerBase):
                 "have sentencepiece installed."
             )
 
+        fast_tokenizer_file = None # ad-hoc
         if tokenizer_object is not None:
             fast_tokenizer = tokenizer_object
         elif fast_tokenizer_file is not None and not from_slow:
