@@ -56,7 +56,7 @@ This trains the thresholds as well as the model parameters to search for the bes
 
 Run the following command:
 ```
-python run.py --arch pibert-base --task {TASK} --restore {CKPT} --lr 2e-5 --temperature {T}\
+python run.py --arch ltp-base --task {TASK} --restore {CKPT} --lr 2e-5 --temperature {T}\
   --lambda 0.15 --weight_decay 0 --bs 64 --masking_mode soft --epoch {epoch} --save_step 100 --no_load
 ```
 
@@ -76,7 +76,7 @@ Once we learn the thresholds, we fix those values, turn back to the hard thresho
 
 Run the following command:
 ```
-python run.py --arch pibert-base --task {TASK} --restore {CKPT_soft} --lr {LR} --bs 64 --masking_mode hard --epoch 5 
+python run.py --arch ltp-base --task {TASK} --restore {CKPT_soft} --lr {LR} --bs 64 --masking_mode hard --epoch 5 
 ```
 
 * We used `{LR}` {0.5, 1, 2}e-5 in the paper.
@@ -103,7 +103,7 @@ You can also assign negative number for `token_keep_rate` and, in that case, the
 Run the following command:
 
 ```
-python run.py --arch pibert-base --task {TASK} --restore {CKPT} --lr {LR} --bs 64 --masking_mode hard --epoch 5
+python run.py --arch ltp-base --task {TASK} --restore {CKPT} --lr {LR} --bs 64 --masking_mode hard --epoch 5
 ```
 
 * We used `{LR}` {0.5, 1, 2}e-5 in the paper.
@@ -123,7 +123,7 @@ Add the following lines in `{CKPT}/config.json`.
 
 Run the following command:
 ```
-python run.py --arch pibert-base --task {TASK} --restore {CKPT} --lr {LR} --bs 64 --masking_mode hard --epoch 5 --save_step 500
+python run.py --arch ltp-base --task {TASK} --restore {CKPT} --lr {LR} --bs 64 --masking_mode hard --epoch 5 --save_step 500
 ```
 
 * We used `{LR}` {0.5, 1, 2}e-5 in the paper.
