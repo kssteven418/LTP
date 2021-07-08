@@ -36,7 +36,7 @@ class CascadeTokenPruner(AbstractTokenPruner):
         * the first 3 or 15% of layers, whichever is greater, should not be token pruned
         * for the remaining layers, the fraction of pruned tokens should increase linearly until the desired final
         value is reached.
-        This method implements these rules and sets the keep_rate field for each pruner in each PIBertLayer.
+        This method implements these rules and sets the keep_rate field for each pruner in each LTPLayer.
         """
         layers_before_pruning = max(3, math.ceil(0.15 * num_hidden_layers))
         layers_with_pruning = num_hidden_layers - layers_before_pruning

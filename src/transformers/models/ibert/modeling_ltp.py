@@ -17,7 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PyTorch PI-BERT model. """
+"""PyTorch LTP model. """
 
 import math
 import numpy as np
@@ -40,28 +40,28 @@ from ...modeling_outputs import (
 )
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
-from .configuration_pibert import PIBertConfig
+from .configuration_ltp import LTPConfig
 from .quant_modules import IntLayerNorm, QuantEmbedding, QuantLinear
 
 from .modeling_ibert import IBertEmbeddings, IBertSelfAttention,  IBertPooler, IBertLayer, IBertAttention, \
     IBertEncoder, IBertPreTrainedModel
 
-from .pibert_model_output import PIBertModelOutput, PIBertSequenceClassifierOutput, PIBertEncoderOutput
+from .ltp_model_output import LTPModelOutput, LTPSequenceClassifierOutput, LTPEncoderOutput
 from .prune_modules import TOKEN_PRUNERS
 
 logger = logging.get_logger(__name__)
 
-_CONFIG_FOR_DOC = "PIBertConfig"
+_CONFIG_FOR_DOC = "LTPConfig"
 _TOKENIZER_FOR_DOC = "RobertaTokenizer"
 
-PIBERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
+LTP_PRETRAINED_MODEL_ARCHIVE_LIST = [
     "kssteven/ibert-roberta-base",
     "kssteven/ibert-roberta-large",
     "kssteven/ibert-roberta-large-mnli",
 ]
 
 
-class PIBertSelfAttention(IBertSelfAttention):
+class LTPSelfAttention(IBertSelfAttention):
     def __init__(self, config, module_num):
         super().__init__(config)
         self.prune_mode = config.prune_mode
@@ -169,10 +169,10 @@ class PIBertSelfAttention(IBertSelfAttention):
         return outputs, output_scaling_factor, new_attention_mask, threshold, pruning_scores
 
 
-class PIBertAttention(IBertAttention):
+class LTPAttention(IBertAttention):
     def __init__(self, config, module_num):
         super().__init__(config)
-        self.self = PIBertSelfAttention(config, module_num)
+        self.self = LTPSelfAttention(config, module_num)
 
     def forward(
         self,
@@ -200,10 +200,10 @@ class PIBertAttention(IBertAttention):
         return outputs, outputs_scaling_factor, new_attention_mask, threshold, pruning_scores
 
 
-class PIBertLayer(IBertLayer):
+class LTPLayer(IBertLayer):
     def __init__(self, config, module_num):
         super().__init__(config)
-        self.attention = PIBertAttention(config, module_num)
+        self.attention = LTPAttention(config, module_num)
         self.lambda_threshold = None
         self.module_num = module_num
         self.mask = None
@@ -248,10 +248,10 @@ class PIBertLayer(IBertLayer):
         return outputs, new_attention_mask
 
 
-class PIBertEncoder(IBertEncoder):
+class LTPEncoder(IBertEncoder):
     def __init__(self, config):
         super().__init__(config)
-        self.layer = nn.ModuleList([PIBertLayer(config, i) for i in range(config.num_hidden_layers)])
+        self.layer = nn.ModuleList([LTPLayer(config, i) for i in range(config.num_hidden_layers)])
         self.prune_mode = config.prune_mode
         self.threshold_scores = np.zeros((1, config.num_hidden_layers))
 
@@ -324,7 +324,7 @@ class PIBertEncoder(IBertEncoder):
                 ]
                 if v is not None
             )
-        return PIBertEncoderOutput(
+        return LTPEncoderOutput(
             last_hidden_state=hidden_states,
             past_key_values=next_decoder_cache,
             hidden_states=all_hidden_states,
@@ -334,13 +334,13 @@ class PIBertEncoder(IBertEncoder):
         )
 
 
-class PIBertPreTrainedModel(PreTrainedModel):
+class LTPPreTrainedModel(PreTrainedModel):
     """
     An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
     models.
     """
 
-    config_class = PIBertConfig
+    config_class = LTPConfig
     base_model_prefix = "ibert"
 
     def _init_weights(self, module):
@@ -356,10 +356,10 @@ class PIBertPreTrainedModel(PreTrainedModel):
             module.bias.data.zero_()
 
     def resize_token_embeddings(self, new_num_tokens=None):
-        raise NotImplementedError("`resize_token_embeddings` is not supported for PI-BERT.")
+        raise NotImplementedError("`resize_token_embeddings` is not supported for LTP.")
 
 
-PIBERT_START_DOCSTRING = r"""
+LTP_START_DOCSTRING = r"""
 
     This model inherits from :class:`~transformers.PreTrainedModel`. Check the superclass documentation for the generic
     methods the library implements for all its model (such as downloading or saving, resizing the input embeddings,
@@ -370,13 +370,13 @@ PIBERT_START_DOCSTRING = r"""
     general usage and behavior.
 
     Parameters:
-        config (:class:`~transformers.PIBertConfig`): Model configuration class with all the parameters of the
+        config (:class:`~transformers.LTPConfig`): Model configuration class with all the parameters of the
             model. Initializing with a config file does not load the weights associated with the model, only the
             configuration. Check out the :meth:`~transformers.PreTrainedModel.from_pretrained` method to load the model
             weights.
 """
 
-PIBERT_INPUTS_DOCSTRING = r"""
+LTP_INPUTS_DOCSTRING = r"""
     Args:
         input_ids (:obj:`torch.LongTensor` of shape :obj:`({0})`):
             Indices of input sequence tokens in the vocabulary.
@@ -428,10 +428,10 @@ PIBERT_INPUTS_DOCSTRING = r"""
 
 
 @add_start_docstrings(
-    "The bare PI-BERT Model transformer outputting raw hidden-states without any specific head on top.",
-    PIBERT_START_DOCSTRING,
+    "The bare LTP Model transformer outputting raw hidden-states without any specific head on top.",
+    LTP_START_DOCSTRING,
 )
-class PIBertModel(PIBertPreTrainedModel):
+class LTPModel(LTPPreTrainedModel):
     """
 
     The model can behave as an encoder (with only self-attention) as well as a decoder, in which case a layer of
@@ -449,7 +449,7 @@ class PIBertModel(PIBertPreTrainedModel):
         self.quant_mode = config.quant_mode
 
         self.embeddings = IBertEmbeddings(config)
-        self.encoder = PIBertEncoder(config)
+        self.encoder = LTPEncoder(config)
 
         self.pooler = IBertPooler(config) if add_pooling_layer else None
 
@@ -522,10 +522,10 @@ class PIBertModel(PIBertPreTrainedModel):
             layer.attention.self.hard_masking = hard_masking
             layer.hard_masking = hard_masking
 
-    @add_start_docstrings_to_model_forward(PIBERT_INPUTS_DOCSTRING.format("(batch_size, sequence_length)"))
+    @add_start_docstrings_to_model_forward(LTP_INPUTS_DOCSTRING.format("(batch_size, sequence_length)"))
     @add_code_sample_docstrings(
         tokenizer_class=_TOKENIZER_FOR_DOC,
-        checkpoint="pibert-roberta-base",
+        checkpoint="ltp-roberta-base",
         output_type=BaseModelOutputWithPoolingAndCrossAttentions,
         config_class=_CONFIG_FOR_DOC,
     )
@@ -602,7 +602,7 @@ class PIBertModel(PIBertPreTrainedModel):
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]
 
-        return PIBertModelOutput(
+        return LTPModelOutput(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
             past_key_values=encoder_outputs.past_key_values,
@@ -613,16 +613,16 @@ class PIBertModel(PIBertPreTrainedModel):
         )
 
 
-@add_start_docstrings("""PI-BERT Model with a `language modeling` head on top. """, PIBERT_START_DOCSTRING)
-class PIBertForMaskedLM(PIBertPreTrainedModel):
+@add_start_docstrings("""LTP Model with a `language modeling` head on top. """, LTP_START_DOCSTRING)
+class LTPForMaskedLM(LTPPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"position_ids", r"lm_head.decoder.bias"]
     _keys_to_ignore_on_load_unexpected = [r"pooler"]
 
     def __init__(self, config):
         super().__init__(config)
 
-        self.ibert = PIBertModel(config, add_pooling_layer=False)
-        self.lm_head = PIBertLMHead(config)
+        self.ibert = LTPModel(config, add_pooling_layer=False)
+        self.lm_head = LTPLMHead(config)
 
         self.init_weights()
 
@@ -632,10 +632,10 @@ class PIBertForMaskedLM(PIBertPreTrainedModel):
     def set_output_embeddings(self, new_embeddings):
         self.lm_head.decoder = new_embeddings
 
-    @add_start_docstrings_to_model_forward(PIBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(LTP_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         tokenizer_class=_TOKENIZER_FOR_DOC,
-        checkpoint="pibert-roberta-base",
+        checkpoint="ltp-roberta-base",
         output_type=MaskedLMOutput,
         config_class=_CONFIG_FOR_DOC,
         mask="<mask>",
@@ -694,8 +694,8 @@ class PIBertForMaskedLM(PIBertPreTrainedModel):
         )
 
 
-class PIBertLMHead(nn.Module):
-    """PI-BERT Head for masked language modeling."""
+class LTPLMHead(nn.Module):
+    """LTP Head for masked language modeling."""
 
     def __init__(self, config):
         super().__init__()
@@ -721,27 +721,27 @@ class PIBertLMHead(nn.Module):
 
 @add_start_docstrings(
     """
-    PI-BERT Model transformer with a sequence classification/regression head on top (a linear layer on top of the pooled
+    LTP Model transformer with a sequence classification/regression head on top (a linear layer on top of the pooled
     output) e.g. for GLUE tasks.
     """,
-    PIBERT_START_DOCSTRING,
+    LTP_START_DOCSTRING,
 )
-class PIBertForSequenceClassification(PIBertPreTrainedModel):
+class LTPForSequenceClassification(LTPPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"position_ids"]
 
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
 
-        self.ibert = PIBertModel(config, add_pooling_layer=False)
-        self.classifier = PIBertClassificationHead(config)
+        self.ibert = LTPModel(config, add_pooling_layer=False)
+        self.classifier = LTPClassificationHead(config)
 
         self.init_weights()
 
-    @add_start_docstrings_to_model_forward(PIBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(LTP_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         tokenizer_class=_TOKENIZER_FOR_DOC,
-        checkpoint="pibert-roberta-base",
+        checkpoint="ltp-roberta-base",
         output_type=SequenceClassifierOutput,
         config_class=_CONFIG_FOR_DOC,
     )
@@ -794,7 +794,7 @@ class PIBertForSequenceClassification(PIBertPreTrainedModel):
             output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
-        return PIBertSequenceClassifierOutput(
+        return LTPSequenceClassifierOutput(
             loss=loss,
             logits=logits,
             hidden_states=outputs.hidden_states,
@@ -805,27 +805,27 @@ class PIBertForSequenceClassification(PIBertPreTrainedModel):
 
 @add_start_docstrings(
     """
-    PI-BERT Model with a multiple choice classification head on top (a linear layer on top of the pooled output and a
+    LTP Model with a multiple choice classification head on top (a linear layer on top of the pooled output and a
     softmax) e.g. for RocStories/SWAG tasks.
     """,
-    PIBERT_START_DOCSTRING,
+    LTP_START_DOCSTRING,
 )
-class PIBertForMultipleChoice(PIBertPreTrainedModel):
+class LTPForMultipleChoice(LTPPreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"position_ids"]
 
     def __init__(self, config):
         super().__init__(config)
 
-        self.ibert = PIBertModel(config)
+        self.ibert = LTPModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, 1)
 
         self.init_weights()
 
-    @add_start_docstrings_to_model_forward(PIBERT_INPUTS_DOCSTRING.format("batch_size, num_choices, sequence_length"))
+    @add_start_docstrings_to_model_forward(LTP_INPUTS_DOCSTRING.format("batch_size, num_choices, sequence_length"))
     @add_code_sample_docstrings(
         tokenizer_class=_TOKENIZER_FOR_DOC,
-        checkpoint="pibert-roberta-base",
+        checkpoint="ltp-roberta-base",
         output_type=MultipleChoiceModelOutput,
         config_class=_CONFIG_FOR_DOC,
     )
@@ -897,12 +897,12 @@ class PIBertForMultipleChoice(PIBertPreTrainedModel):
 
 @add_start_docstrings(
     """
-    PI-BERT Model with a token classification head on top (a linear layer on top of the hidden-states output) e.g. for
+    LTP Model with a token classification head on top (a linear layer on top of the hidden-states output) e.g. for
     Named-Entity-Recognition (NER) tasks.
     """,
-    PIBERT_START_DOCSTRING,
+    LTP_START_DOCSTRING,
 )
-class PIBertForTokenClassification(PIBertPreTrainedModel):
+class LTPForTokenClassification(LTPPreTrainedModel):
     _keys_to_ignore_on_load_unexpected = [r"pooler"]
     _keys_to_ignore_on_load_missing = [r"position_ids"]
 
@@ -910,16 +910,16 @@ class PIBertForTokenClassification(PIBertPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
 
-        self.ibert = PIBertModel(config, add_pooling_layer=False)
+        self.ibert = LTPModel(config, add_pooling_layer=False)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
 
-    @add_start_docstrings_to_model_forward(PIBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(LTP_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         tokenizer_class=_TOKENIZER_FOR_DOC,
-        checkpoint="pibert-roberta-base",
+        checkpoint="ltp-roberta-base",
         output_type=TokenClassifierOutput,
         config_class=_CONFIG_FOR_DOC,
     )
@@ -986,7 +986,7 @@ class PIBertForTokenClassification(PIBertPreTrainedModel):
         )
 
 
-class PIBertClassificationHead(nn.Module):
+class LTPClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
     def __init__(self, config):
@@ -1007,12 +1007,12 @@ class PIBertClassificationHead(nn.Module):
 
 @add_start_docstrings(
     """
-    PI-BERT Model with a span classification head on top for extractive question-answering tasks like SQuAD (a linear
+    LTP Model with a span classification head on top for extractive question-answering tasks like SQuAD (a linear
     layers on top of the hidden-states output to compute `span start logits` and `span end logits`).
     """,
-    PIBERT_START_DOCSTRING,
+    LTP_START_DOCSTRING,
 )
-class PIBertForQuestionAnswering(PIBertPreTrainedModel):
+class LTPForQuestionAnswering(LTPPreTrainedModel):
     _keys_to_ignore_on_load_unexpected = [r"pooler"]
     _keys_to_ignore_on_load_missing = [r"position_ids"]
 
@@ -1020,15 +1020,15 @@ class PIBertForQuestionAnswering(PIBertPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
 
-        self.ibert = PIBertModel(config, add_pooling_layer=False)
+        self.ibert = LTPModel(config, add_pooling_layer=False)
         self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
 
-    @add_start_docstrings_to_model_forward(PIBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_start_docstrings_to_model_forward(LTP_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         tokenizer_class=_TOKENIZER_FOR_DOC,
-        checkpoint="pibert-roberta-base",
+        checkpoint="ltp-roberta-base",
         output_type=QuestionAnsweringModelOutput,
         config_class=_CONFIG_FOR_DOC,
     )

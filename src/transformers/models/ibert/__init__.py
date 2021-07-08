@@ -23,7 +23,7 @@ from ...file_utils import _BaseLazyModule, is_torch_available
 
 _import_structure = {
     "configuration_ibert": ["IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "IBertConfig"],
-    "configuration_pibert": ["PIBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "PIBertConfig"],
+    "configuration_ltp": ["LTP_PRETRAINED_CONFIG_ARCHIVE_MAP", "LTPConfig"],
 }
 
 if is_torch_available():
@@ -37,18 +37,18 @@ if is_torch_available():
         "IBertModel",
         "IBertPreTrainedModel",
     ]
-    _import_structure["modeling_pibert"] = [
-        "PIBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
-        "PIBertForMaskedLM",
-        "PIBertForMultipleChoice",
-        "PIBertForQuestionAnswering",
-        "PIBertForSequenceClassification",
-        "PIBertForTokenClassification",
-        "PIBertModel",
+    _import_structure["modeling_ltp"] = [
+        "LTP_PRETRAINED_MODEL_ARCHIVE_LIST",
+        "LTPForMaskedLM",
+        "LTPForMultipleChoice",
+        "LTPForQuestionAnswering",
+        "LTPForSequenceClassification",
+        "LTPForTokenClassification",
+        "LTPModel",
     ]
 if TYPE_CHECKING:
     from .configuration_ibert import IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, IBertConfig
-    from .configuration_pibert import PIBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, PIBertConfig
+    from .configuration_ltp import LTP_PRETRAINED_CONFIG_ARCHIVE_MAP, LTPConfig
 
     if is_torch_available():
         from .modeling_ibert import (
@@ -61,14 +61,14 @@ if TYPE_CHECKING:
             IBertModel,
             IBertPreTrainedModel,
         )
-        from .modeling_pibert import (
-            PIBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            PIBertForMaskedLM,
-            PIBertForMultipleChoice,
-            PIBertForQuestionAnswering,
-            PIBertForSequenceClassification,
-            PIBertForTokenClassification,
-            PIBertModel,
+        from .modeling_ltp import (
+            LTP_PRETRAINED_MODEL_ARCHIVE_LIST,
+            LTPForMaskedLM,
+            LTPForMultipleChoice,
+            LTPForQuestionAnswering,
+            LTPForSequenceClassification,
+            LTPForTokenClassification,
+            LTPModel,
         )
 else:
     import importlib

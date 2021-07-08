@@ -24,7 +24,7 @@ from ...utils import logging
 
 logger = logging.get_logger(__name__)
 
-PIBERT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
+LTP_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "kssteven/ibert-roberta-base": "https://huggingface.co/kssteven/ibert-roberta-base/resolve/main/config.json",
     "kssteven/ibert-roberta-large": "https://huggingface.co/kssteven/ibert-roberta-large/resolve/main/config.json",
     "kssteven/ibert-roberta-large-mnli":
@@ -32,10 +32,10 @@ PIBERT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
 }
 
 
-class PIBertConfig(PretrainedConfig):
+class LTPConfig(PretrainedConfig):
     """
-    This is the configuration class to store the configuration of a :class:`~transformers.PIBertModel`. It is used to
-    instantiate a PI-BERT model according to the specified arguments,
+    This is the configuration class to store the configuration of a :class:`~transformers.LTPModel`. It is used to
+    instantiate a LTP model according to the specified arguments,
 
     Configuration objects inherit from :class:`~transformers.PretrainedConfig` and can be used to control the model
     outputs. Read the documentation from :class:`~transformers.PretrainedConfig` for more information.
@@ -90,7 +90,7 @@ class PIBertConfig(PretrainedConfig):
             int(number of input unmasked tokens * token_keep_rate).
     """
 
-    model_type = "pibert"
+    model_type = "ltp"
 
     def __init__(
         self,

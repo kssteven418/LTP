@@ -5,7 +5,7 @@ from transformers.file_utils import ModelOutput
 from typing import Optional, Tuple
 
 @dataclass
-class PIBertEncoderOutput(ModelOutput):
+class LTPEncoderOutput(ModelOutput):
     last_hidden_state: torch.FloatTensor = None
     past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
@@ -15,7 +15,7 @@ class PIBertEncoderOutput(ModelOutput):
 
 
 @dataclass
-class PIBertSequenceClassifierOutput(ModelOutput):
+class LTPSequenceClassifierOutput(ModelOutput):
     loss: Optional[torch.FloatTensor] = None
     logits: torch.FloatTensor = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
@@ -24,7 +24,7 @@ class PIBertSequenceClassifierOutput(ModelOutput):
 
 
 @dataclass
-class PIBertModelOutput(ModelOutput):
+class LTPModelOutput(ModelOutput):
     last_hidden_state: torch.FloatTensor = None
     pooler_output: torch.FloatTensor = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
