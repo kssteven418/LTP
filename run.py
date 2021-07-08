@@ -74,9 +74,7 @@ if args.arch is None:
     print('please specify --arch')
     sys.exit()
 
-DEFAULT_OUTPUT_DIR = 'roberta_checkpoints'
-if 'ibert' in args.arch:
-    DEFAULT_OUTPUT_DIR = 'ibert_checkpoints'
+DEFAULT_OUTPUT_DIR = 'checkpoints'
 
 os.environ['CUDA_VISIBLE_DEVICES'] = str(args.cuda)
 max_epochs = str(args.epoch)
