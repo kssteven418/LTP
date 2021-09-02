@@ -26,7 +26,7 @@ import time
 from datetime import datetime
 
 import numpy as np
-from datasets import load_dataset, load_metric
+from datasets import load_dataset, load_metric, Dataset
 
 import transformers
 from transformers import (
@@ -174,7 +174,14 @@ class ModelArguments:
             "with private models)."
         },
     )
-
+    length_max: Optional[int] = field(
+        default=None,
+        metadata={"help": "Length max threshold for train/evaluate datasets"}
+    )
+    length_min: Optional[int] = field(
+        default=None,
+        metadata={"help": "Length min threshold for train/evaluate datasets"}
+    )
 
 def main():
     # See all possible arguments in src/transformers/training_args.py
@@ -388,6 +395,29 @@ def main():
         if data_args.max_train_samples is not None:
             train_dataset = train_dataset.select(range(data_args.max_train_samples))
 
+    def _partition_dataset(dataset):
+        assert not (model_args.length_max is not None and model_args.length_min is not None)
+        new_dataset = {}
+        for example in dataset:
+            length = sum(example['attention_mask'])
+            if model_args.length_max is not None and length > model_args.length_max:
+                continue
+            if model_args.length_min is not None and length < model_args.length_min:
+                continue
+
+            for k, v in example.items():
+                if k not in new_dataset:
+                    new_dataset[k] = []
+                new_dataset[k].append(v)
+
+        new_dataset = Dataset.from_dict(new_dataset)
+        print(dataset)
+        print(new_dataset)
+        return new_dataset
+
+    if model_args.length_max is not None or model_args.length_min is not None:
+        train_dataset = _partition_dataset(train_dataset)
+
     if training_args.do_eval:
         if "validation" not in datasets and "validation_matched" not in datasets:
             raise ValueError("--do_eval requires a validation dataset")
@@ -395,12 +425,18 @@ def main():
         if data_args.max_val_samples is not None:
             eval_dataset = eval_dataset.select(range(data_args.max_val_samples))
 
+    if model_args.length_max is not None or model_args.length_min is not None:
+        eval_dataset = _partition_dataset(eval_dataset)
+
     if training_args.do_predict or data_args.task_name is not None or data_args.test_file is not None:
         if "test" not in datasets and "test_matched" not in datasets:
             raise ValueError("--do_predict requires a test dataset")
         test_dataset = datasets["test_matched" if data_args.task_name == "mnli" else "test"]
         if data_args.max_test_samples is not None:
             test_dataset = test_dataset.select(range(data_args.max_test_samples))
+
+    if model_args.length_max is not None or model_args.length_min is not None:
+        test_dataset = _partition_dataset(test_dataset)
 
     # Log a few random samples from the training set:
     if training_args.do_train:

@@ -29,6 +29,8 @@ def arg_parse():
     parser.add_argument('--temperature', type=float, default=None)
     parser.add_argument('--save_all', action='store_true') 
     parser.add_argument('--no_load', action='store_true') 
+    parser.add_argument('--length_min', type=int, default=None)
+    parser.add_argument('--length_max', type=int, default=None)
 
     args = parser.parse_args()
     return args
@@ -163,6 +165,11 @@ subprocess_args = [
     '--per_device_eval_batch_size', str(args.bs),
     '--masking_mode', args.masking_mode,
     ]
+
+if args.length_min is not None:
+    subprocess_args += ['--length_min', str(args.length_min)]
+if args.length_max is not None:
+    subprocess_args += ['--length_max', str(args.length_max)]
 
 # Training mode
 if not args.eval:
