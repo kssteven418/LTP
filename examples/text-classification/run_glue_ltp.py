@@ -388,12 +388,6 @@ def main():
         return result
 
     datasets = datasets.map(preprocess_function, batched=True, load_from_cache_file=not data_args.overwrite_cache)
-    if training_args.do_train:
-        if "train" not in datasets:
-            raise ValueError("--do_train requires a train dataset")
-        train_dataset = datasets["train"]
-        if data_args.max_train_samples is not None:
-            train_dataset = train_dataset.select(range(data_args.max_train_samples))
 
     def _partition_dataset(dataset):
         assert not (model_args.length_max is not None and model_args.length_min is not None)
@@ -415,8 +409,15 @@ def main():
         print(new_dataset)
         return new_dataset
 
-    if model_args.length_max is not None or model_args.length_min is not None:
-        train_dataset = _partition_dataset(train_dataset)
+    if training_args.do_train:
+        if "train" not in datasets:
+            raise ValueError("--do_train requires a train dataset")
+        train_dataset = datasets["train"]
+        if data_args.max_train_samples is not None:
+            train_dataset = train_dataset.select(range(data_args.max_train_samples))
+
+        if model_args.length_max is not None or model_args.length_min is not None:
+            train_dataset = _partition_dataset(train_dataset)
 
     if training_args.do_eval:
         if "validation" not in datasets and "validation_matched" not in datasets:
@@ -425,8 +426,8 @@ def main():
         if data_args.max_val_samples is not None:
             eval_dataset = eval_dataset.select(range(data_args.max_val_samples))
 
-    if model_args.length_max is not None or model_args.length_min is not None:
-        eval_dataset = _partition_dataset(eval_dataset)
+        if model_args.length_max is not None or model_args.length_min is not None:
+            eval_dataset = _partition_dataset(eval_dataset)
 
     if training_args.do_predict or data_args.task_name is not None or data_args.test_file is not None:
         if "test" not in datasets and "test_matched" not in datasets:
@@ -435,8 +436,8 @@ def main():
         if data_args.max_test_samples is not None:
             test_dataset = test_dataset.select(range(data_args.max_test_samples))
 
-    if model_args.length_max is not None or model_args.length_min is not None:
-        test_dataset = _partition_dataset(test_dataset)
+        if model_args.length_max is not None or model_args.length_min is not None:
+            test_dataset = _partition_dataset(test_dataset)
 
     # Log a few random samples from the training set:
     if training_args.do_train:
