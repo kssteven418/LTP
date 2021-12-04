@@ -41,9 +41,9 @@ from ...modeling_outputs import (
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from .configuration_ltp import LTPConfig
-from .quant_modules import IntLayerNorm, QuantEmbedding, QuantLinear
+from ..ibert.quant_modules import IntLayerNorm, QuantEmbedding, QuantLinear
 
-from .modeling_ibert import IBertEmbeddings, IBertSelfAttention,  IBertPooler, IBertLayer, IBertAttention, \
+from ..ibert.modeling_ibert import IBertEmbeddings, IBertSelfAttention,  IBertPooler, IBertLayer, IBertAttention, \
     IBertEncoder, IBertPreTrainedModel
 
 from .ltp_model_output import LTPModelOutput, LTPSequenceClassifierOutput, LTPEncoderOutput

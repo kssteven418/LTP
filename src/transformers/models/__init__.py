@@ -47,6 +47,7 @@ from . import (
     led,
     longformer,
     lxmert,
+    ltp,
     m2m_100,
     marian,
     mbart,

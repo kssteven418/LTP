@@ -144,7 +144,7 @@ from ..ibert.modeling_ibert import (
     IBertForTokenClassification,
     IBertModel,
 )
-from ..ibert.modeling_ltp import (
+from ..ltp.modeling_ltp import (
     LTPForMaskedLM,
     LTPForMultipleChoice,
     LTPForQuestionAnswering,
