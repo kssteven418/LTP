@@ -1104,13 +1104,13 @@ class Trainer:
         # TODO this is an adhoc solution
         #model.ibert.set_lambda_threshold(self.args.lambda_threshold)
         if self.args.masking_mode == 'hard':
-            model.ibert.set_hard_masking(True)
+            model.get_model().set_hard_masking(True)
         elif self.args.masking_mode == 'soft':
-            model.ibert.set_hard_masking(False)
+            model.get_model().set_hard_masking(False)
         else:
             raise NotImplementedError
 
-        model.ibert.set_temperature(self.args.temperature)
+        model.get_model().set_temperature(self.args.temperature)
 
         self.control = self.callback_handler.on_train_begin(self.args, self.state, self.control)
 
@@ -1266,13 +1266,13 @@ class Trainer:
                 )
 
         if self.args.masking_mode == 'hard':
-            self.model.ibert.set_hard_masking(True)
+            self.model.get_model().set_hard_masking(True)
         elif self.args.masking_mode == 'soft':
-            self.model.ibert.set_hard_masking(False)
+            self.model.get_model().set_hard_masking(False)
         else:
             raise NotImplementedError
 
-        model.ibert.set_temperature(self.args.temperature)
+        model.get_model().set_temperature(self.args.temperature)
 
         metrics = speed_metrics("train", start_time, self.state.max_steps)
         if self._total_flos is not None:
@@ -1589,7 +1589,7 @@ class Trainer:
 
         if self.args.masking_mode == 'soft':
             loss_reg = 0
-            for layer in self.model.ibert.encoder.layer:
+            for layer in self.model.get_model().encoder.layer:
                 if layer.mask is not None:
                     loss_reg += layer.mask.mean() #TODO right?
             loss += self.args.lambda_threshold * loss_reg
@@ -1830,16 +1830,17 @@ class Trainer:
 
         n_samples = len(eval_dataset if eval_dataset is not None else self.eval_dataset)
         output.metrics.update(speed_metrics(metric_key_prefix, start_time, n_samples))
-        macs = sum(self.model.ibert.macs) / len(self.model.ibert.macs)
-        macs_baseline = sum(self.model.ibert.macs_baseline) / len(self.model.ibert.macs_baseline)
+        target_model = self.model.get_model()
+        macs = sum(target_model.macs) / len(target_model.macs)
+        macs_baseline = sum(target_model.macs_baseline) / len(target_model.macs_baseline)
         output.metrics.update({'relative_macs': macs / macs_baseline})
         output.metrics.update({'gflops': macs_baseline * 2 / 1e9})
-        seqlen = self.model.ibert.seqlen_baseline
-        self.model.ibert.print_sentence_lengths()
-        self.model.ibert.reset_macs()
+        seqlen = target_model.seqlen_baseline
+        target_model.print_sentence_lengths()
+        target_model.reset_macs()
         self.log(output.metrics)
 
-        for i, layer in enumerate(self.model.ibert.encoder.layer):
+        for i, layer in enumerate(target_model.encoder.layer):
             # just an adhoc code for debugging
             if 'AbsoluteThresholdTokenPruner' in str(type(layer.attention.self.pruner)):
                 logger.info("Layer %d Treshold: %.5f" % (i,

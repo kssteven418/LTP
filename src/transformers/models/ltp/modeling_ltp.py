@@ -802,6 +802,9 @@ class LTPForSequenceClassification(LTPPreTrainedModel):
             batch_tokens=outputs.batch_tokens
         )
 
+    def get_model(self):
+        return self.ibert
+
 
 @add_start_docstrings(
     """
