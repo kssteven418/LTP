@@ -1834,7 +1834,8 @@ class Trainer:
         macs = sum(target_model.macs) / len(target_model.macs)
         macs_baseline = sum(target_model.macs_baseline) / len(target_model.macs_baseline)
         output.metrics.update({'relative_macs': macs / macs_baseline})
-        output.metrics.update({'gflops': macs_baseline * 2 / 1e9})
+        output.metrics.update({'baseline_gflops': macs_baseline * 2 / 1e9})
+        output.metrics.update({'reduced_gflops': macs * 2 / 1e9})
         seqlen = target_model.seqlen_baseline
         target_model.print_sentence_lengths()
         target_model.reset_macs()
