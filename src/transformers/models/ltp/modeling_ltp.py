@@ -98,11 +98,6 @@ class LTPSelfAttention(IBertSelfAttention):
         key_layer = self.transpose_for_scores(key_layer)
         value_layer = self.transpose_for_scores(value_layer)
 
-        if not self.training:
-            attention_mask_binary = attention_mask > -1
-            self.sentence_len = attention_mask_binary.sum(-1).reshape(-1)
-            #print(self.sentence_len)
-
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
         scale = math.sqrt(self.attention_head_size)
@@ -135,9 +130,22 @@ class LTPSelfAttention(IBertSelfAttention):
         else:
             new_attention_mask = attention_mask
 
-        # if softmasking, do not set attention mask
-        #if not self.hard_masking:
-        if not self.hard_masking and self.training:
+        sentence_len_dict = None
+        if not self.training:
+            # sentence length collection for FLOPs computation
+            # attention is computed before token pruning,
+            # so the length is computed with pre-pruning attention mask
+            attention_mask_binary = attention_mask > -1
+            sentence_len_attn = attention_mask_binary.sum(-1).reshape(-1)
+            # FFN is computed after token pruning,
+            # so the length is computed with post-pruning attention mask
+            new_attention_mask_binary = new_attention_mask > -1
+            sentence_len_ffn = new_attention_mask_binary.sum(-1).reshape(-1)
+            sentence_len_dict = {'attn': sentence_len_attn, 'ffn': sentence_len_ffn}
+
+        # If training with the soft masking mode, do not set attention mask
+        # Instead, soft masking will be applied at the end of each layer
+        if self.training and not self.hard_masking:
             new_attention_mask = attention_mask
 
         # Mask heads if we want to
@@ -166,7 +174,7 @@ class LTPSelfAttention(IBertSelfAttention):
             else (context_layer_scaling_factor,)
         )
 
-        return outputs, output_scaling_factor, new_attention_mask, threshold, pruning_scores
+        return outputs, output_scaling_factor, new_attention_mask, threshold, pruning_scores, sentence_len_dict
 
 
 class LTPAttention(IBertAttention):
@@ -184,7 +192,7 @@ class LTPAttention(IBertAttention):
         output_attentions=False,
     ):
         self_outputs, self_outputs_scaling_factor, new_attention_mask, \
-        threshold, pruning_scores = self.self(
+        threshold, pruning_scores, sentence_len_dict = self.self(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -197,7 +205,7 @@ class LTPAttention(IBertAttention):
         )
         outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         outputs_scaling_factor = (attention_output_scaling_factor,) + self_outputs_scaling_factor[1:]
-        return outputs, outputs_scaling_factor, new_attention_mask, threshold, pruning_scores
+        return outputs, outputs_scaling_factor, new_attention_mask, threshold, pruning_scores, sentence_len_dict
 
 
 class LTPLayer(IBertLayer):
@@ -221,7 +229,7 @@ class LTPLayer(IBertLayer):
     ):
 
         self_attention_outputs, self_attention_outputs_scaling_factor, \
-        new_attention_mask, threshold, pruning_scores = self.attention(
+        new_attention_mask, threshold, pruning_scores, sentence_len_dict = self.attention(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -244,6 +252,10 @@ class LTPLayer(IBertLayer):
                 layer_output = layer_output * self.mask.unsqueeze(-1)
             
         outputs = (layer_output,) + outputs
+        if sentence_len_dict is not None:
+            self.sentence_len = sentence_len_dict['attn']
+        else:
+            self.sentence_len = None
 
         return outputs, new_attention_mask
 
@@ -489,12 +501,12 @@ class LTPModel(LTPPreTrainedModel):
 
         mac_estimate_total = 0
         for i in range(num_hidden_layers):
-            seqlen = self.encoder.layer[i].attention.self.sentence_len
+            seqlen = self.encoder.layer[i].sentence_len
             mac_estimate = _layer_mac(seqlen, hidden_size)
             mac_estimate_total += mac_estimate
             self.seqlen[i] += int(seqlen.sum())
 
-        initial_seqlen = self.encoder.layer[0].attention.self.sentence_len
+        initial_seqlen = self.encoder.layer[0].sentence_len
         baseline = 12 * _layer_mac(initial_seqlen, hidden_size)
         self.seqlen_baseline += int(initial_seqlen.sum())
         return mac_estimate_total, baseline

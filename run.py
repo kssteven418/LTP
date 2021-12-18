@@ -29,6 +29,7 @@ def arg_parse():
     parser.add_argument('--temperature', type=float, default=None)
     parser.add_argument('--save_all', action='store_true') 
     parser.add_argument('--no_load', action='store_true') 
+    parser.add_argument('--seed', type=int, default=0)
 
     args = parser.parse_args()
     return args
@@ -162,6 +163,7 @@ subprocess_args = [
     '--per_device_train_batch_size', str(args.bs),
     '--per_device_eval_batch_size', str(args.bs),
     '--masking_mode', args.masking_mode,
+    '--seed', str(args.seed),
     ]
 
 # Training mode

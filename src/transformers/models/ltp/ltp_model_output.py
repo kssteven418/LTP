@@ -2,7 +2,7 @@ import torch
 
 from dataclasses import dataclass
 from transformers.file_utils import ModelOutput
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 @dataclass
 class LTPEncoderOutput(ModelOutput):
@@ -12,6 +12,8 @@ class LTPEncoderOutput(ModelOutput):
     attentions: Optional[Tuple[torch.FloatTensor]] = None
     cross_attentions: Optional[Tuple[torch.FloatTensor]] = None
     batch_tokens: Optional[torch.IntTensor] = None
+    attention_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
+    ffn_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
 
 
 @dataclass
@@ -21,6 +23,8 @@ class LTPSequenceClassifierOutput(ModelOutput):
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
     batch_tokens: Optional[torch.IntTensor] = None
+    attention_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
+    ffn_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
 
 
 @dataclass
@@ -32,3 +36,5 @@ class LTPModelOutput(ModelOutput):
     attentions: Optional[Tuple[torch.FloatTensor]] = None
     cross_attentions: Optional[Tuple[torch.FloatTensor]] = None
     batch_tokens: Optional[torch.IntTensor] = None
+    attention_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
+    ffn_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
