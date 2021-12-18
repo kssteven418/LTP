@@ -1628,8 +1628,39 @@ class Trainer:
         else:
             # We don't use .loss here since the model may return tuples instead of ModelOutput.
             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+        
+        if "attention_sentence_lengths" in outputs and len(outputs["attention_sentence_lengths"]) > 0:
+            assert "ffn_sentence_lengths" in outputs and len(outputs["ffn_sentence_lengths"]) > 0
+            dim = model.get_model().config.hidden_size
+            mac, baseline_mac = self.compute_macs(
+                outputs["attention_sentence_lengths"],
+                outputs["ffn_sentence_lengths"],
+                dim,
+            )
+            
+            self.macs += mac
+            self.baseline_macs += baseline_mac
 
         return (loss, outputs) if return_outputs else loss
+
+    def compute_macs(self, attention_sentence_lengths, ffn_sentence_lengths, dim):
+        def _layer_mac(attention_sentence_length, ffn_sentence_length, dim):
+            attention_mac = 2 * dim * attention_sentence_length ** 2 # Q*V, attn*V
+            attention_mac += 4 * dim ** 2 * attention_sentence_length
+            ffn_mac = 8 * dim ** 2 * ffn_sentence_length
+            return attention_mac + ffn_mac
+
+        mac = 0
+        for i in range(len(attention_sentence_lengths)):
+            attention_sentence_length = attention_sentence_lengths[i]
+            ffn_sentence_length = ffn_sentence_lengths[i]
+            mac += _layer_mac(attention_sentence_length, ffn_sentence_length, dim)
+
+        baseline_mac = _layer_mac(
+            attention_sentence_lengths[0], attention_sentence_lengths[0], dim
+        ) * len(attention_sentence_lengths)
+
+        return mac.cpu().tolist(), baseline_mac.cpu().tolist()
 
     def is_local_process_zero(self) -> bool:
         """
@@ -1833,9 +1864,9 @@ class Trainer:
         target_model = self.model.get_model()
         macs = sum(target_model.macs) / len(target_model.macs)
         macs_baseline = sum(target_model.macs_baseline) / len(target_model.macs_baseline)
-        output.metrics.update({'relative_macs': macs / macs_baseline})
-        output.metrics.update({'baseline_gflops': macs_baseline * 2 / 1e9})
-        output.metrics.update({'reduced_gflops': macs * 2 / 1e9})
+        output.metrics.update({'old_relative_macs': macs / macs_baseline})
+        output.metrics.update({'old_baseline_gflops': macs_baseline * 2 / 1e9})
+        output.metrics.update({'old_reduced_gflops': macs * 2 / 1e9})
         seqlen = target_model.seqlen_baseline
         target_model.print_sentence_lengths()
         target_model.reset_macs()
@@ -1971,6 +2002,9 @@ class Trainer:
 
         self.callback_handler.eval_dataloader = dataloader
 
+        self.macs = []
+        self.baseline_macs = []
+
         for step, inputs in enumerate(dataloader):
             loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
             if loss is not None:
@@ -2021,6 +2055,15 @@ class Trainer:
         for key in list(metrics.keys()):
             if not key.startswith(f"{metric_key_prefix}_"):
                 metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)
+
+        # Log FLOPs if MACs are counted
+        if len(self.macs) > 0:
+            assert len(self.baseline_macs) > 0
+            #baseline_macs = self.baseline_macs.cpu().tolist()
+            #macs = self.macs.cpu().tolist()
+            metrics["baseline_gflops"] = 2 * sum(self.baseline_macs) / len(self.baseline_macs) * 1e-9
+            metrics["gflops"] = 2 * sum(self.macs) / len(self.macs) * 1e-9
+            metrics["relative_flops"] = sum(self.macs) / sum(self.baseline_macs)
 
         return PredictionOutput(predictions=preds, label_ids=label_ids, metrics=metrics)
 

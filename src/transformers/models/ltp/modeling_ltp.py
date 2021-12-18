@@ -310,6 +310,10 @@ class LTPEncoder(IBertEncoder):
 
             attention_mask = new_attention_mask
 
+            if sentence_len_dict is not None:
+                attention_sentence_lengths.append(sentence_len_dict['attn'])
+                ffn_sentence_lengths.append(sentence_len_dict['ffn'])
+
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1:-1],)
 
@@ -325,6 +329,8 @@ class LTPEncoder(IBertEncoder):
                     all_hidden_states,
                     all_self_attentions,
                     all_cross_attentions,
+                    attention_sentence_lengths,
+                    ffn_sentence_lengths,
                 ]
                 if v is not None
             )
@@ -334,6 +340,8 @@ class LTPEncoder(IBertEncoder):
             hidden_states=all_hidden_states,
             attentions=all_self_attentions,
             cross_attentions=all_cross_attentions,
+            attention_sentence_lengths=attention_sentence_lengths,
+            ffn_sentence_lengths=ffn_sentence_lengths,
         )
 
 
@@ -612,6 +620,8 @@ class LTPModel(LTPPreTrainedModel):
             hidden_states=encoder_outputs.hidden_states,
             attentions=encoder_outputs.attentions,
             cross_attentions=encoder_outputs.cross_attentions,
+            attention_sentence_lengths=encoder_outputs.attention_sentence_lengths,
+            ffn_sentence_lengths=encoder_outputs.ffn_sentence_lengths,
         )
 
 
@@ -801,6 +811,8 @@ class LTPForSequenceClassification(LTPPreTrainedModel):
             logits=logits,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
+            attention_sentence_lengths=outputs.attention_sentence_lengths,
+            ffn_sentence_lengths=outputs.ffn_sentence_lengths,
         )
 
     def get_model(self):
