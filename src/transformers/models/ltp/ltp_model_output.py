@@ -11,7 +11,6 @@ class LTPEncoderOutput(ModelOutput):
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
     cross_attentions: Optional[Tuple[torch.FloatTensor]] = None
-    batch_tokens: Optional[torch.IntTensor] = None
     attention_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
     ffn_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
 
@@ -22,7 +21,6 @@ class LTPSequenceClassifierOutput(ModelOutput):
     logits: torch.FloatTensor = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
-    batch_tokens: Optional[torch.IntTensor] = None
     attention_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
     ffn_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
 
@@ -35,6 +33,5 @@ class LTPModelOutput(ModelOutput):
     past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
     cross_attentions: Optional[Tuple[torch.FloatTensor]] = None
-    batch_tokens: Optional[torch.IntTensor] = None
     attention_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None
     ffn_sentence_lengths: Optional[List[List[torch.FloatTensor]]] = None

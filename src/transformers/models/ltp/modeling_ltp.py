@@ -257,7 +257,7 @@ class LTPLayer(IBertLayer):
         else:
             self.sentence_len = None
 
-        return outputs, new_attention_mask
+        return outputs, new_attention_mask, sentence_len_dict
 
 
 class LTPEncoder(IBertEncoder):
@@ -283,9 +283,10 @@ class LTPEncoder(IBertEncoder):
         next_decoder_cache = None  # `config.use_cache` is not supported
 
         batch_size = attention_mask.shape[0]
-        batch_tokens = [(attention_mask == 0).view(batch_size, -1).sum(dim=1)] if \
-            (self.prune_mode and not self.training) else None
         sentence_lengths = (attention_mask == 0).view(batch_size, -1).sum(dim=1) if self.prune_mode else None
+
+        attention_sentence_lengths = [] # per layer, store list for each example in batch
+        ffn_sentence_lengths = [] # per layer, store list for each example in batch
 
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
@@ -297,7 +298,7 @@ class LTPEncoder(IBertEncoder):
                 raise NotImplementedError("gradient checkpointing is not currently supported")
 
             else:
-                layer_outputs, new_attention_mask = layer_module(
+                layer_outputs, new_attention_mask, sentence_len_dict = layer_module(
                     hidden_states,
                     hidden_states_scaling_factor,
                     attention_mask,
@@ -307,18 +308,10 @@ class LTPEncoder(IBertEncoder):
                 )
             hidden_states = layer_outputs[0]
 
-            # TODO: add code for calculating and outputting threshold scores
-            if self.prune_mode and not self.training:
-                layer_token_counts = (new_attention_mask == 0).view(batch_size, -1).sum(dim=1)
-                batch_tokens.append(layer_token_counts)
-                # self.threshold_scores[:, i] = self.layer[i].attention.self.pruner.threshold_score
             attention_mask = new_attention_mask
 
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1:-1],)
-
-        if self.prune_mode and not self.training:
-            batch_tokens = torch.stack(batch_tokens).t()
 
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
@@ -332,7 +325,6 @@ class LTPEncoder(IBertEncoder):
                     all_hidden_states,
                     all_self_attentions,
                     all_cross_attentions,
-                    batch_tokens
                 ]
                 if v is not None
             )
@@ -342,7 +334,6 @@ class LTPEncoder(IBertEncoder):
             hidden_states=all_hidden_states,
             attentions=all_self_attentions,
             cross_attentions=all_cross_attentions,
-            batch_tokens=batch_tokens
         )
 
 
@@ -621,7 +612,6 @@ class LTPModel(LTPPreTrainedModel):
             hidden_states=encoder_outputs.hidden_states,
             attentions=encoder_outputs.attentions,
             cross_attentions=encoder_outputs.cross_attentions,
-            batch_tokens=encoder_outputs.batch_tokens
         )
 
 
@@ -811,7 +801,6 @@ class LTPForSequenceClassification(LTPPreTrainedModel):
             logits=logits,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
-            batch_tokens=outputs.batch_tokens
         )
 
     def get_model(self):
