@@ -1862,16 +1862,9 @@ class Trainer:
         n_samples = len(eval_dataset if eval_dataset is not None else self.eval_dataset)
         output.metrics.update(speed_metrics(metric_key_prefix, start_time, n_samples))
         target_model = self.model.get_model()
-        macs = sum(target_model.macs) / len(target_model.macs)
-        macs_baseline = sum(target_model.macs_baseline) / len(target_model.macs_baseline)
-        output.metrics.update({'old_relative_macs': macs / macs_baseline})
-        output.metrics.update({'old_baseline_gflops': macs_baseline * 2 / 1e9})
-        output.metrics.update({'old_reduced_gflops': macs * 2 / 1e9})
-        seqlen = target_model.seqlen_baseline
-        target_model.print_sentence_lengths()
-        target_model.reset_macs()
         self.log(output.metrics)
 
+        logger.info("")
         for i, layer in enumerate(target_model.encoder.layer):
             # just an adhoc code for debugging
             if 'AbsoluteThresholdTokenPruner' in str(type(layer.attention.self.pruner)):
