@@ -214,7 +214,7 @@ class LTPLayer(IBertLayer):
         self.module_num = module_num
         self.mask = None
         self.hard_masking = False
-        self.temperature = 1e-3
+        self.temperature = 1e-5
 
     def forward(
         self,
@@ -251,10 +251,6 @@ class LTPLayer(IBertLayer):
                 layer_output = layer_output * self.mask.unsqueeze(-1)
             
         outputs = (layer_output,) + outputs
-        if sentence_len_dict is not None:
-            self.sentence_len = sentence_len_dict['attn']
-        else:
-            self.sentence_len = None
 
         return outputs, new_attention_mask, sentence_len_dict
 
@@ -465,9 +461,6 @@ class LTPModel(LTPPreTrainedModel):
         self.init_weights()
 
         self.hard_masking = False
-
-        self.seqlen = {i: 0 for i in range(self.config.num_hidden_layers)}
-        self.seqlen_baseline = 0
 
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
