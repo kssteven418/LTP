@@ -2,8 +2,6 @@
 
 ![Screenshot from 2021-07-08 13-39-02](https://user-images.githubusercontent.com/50283958/124863552-376e7e80-dff2-11eb-8930-707664858adc.png)
 
-![Screenshot from 2021-07-08 13-39-28](https://user-images.githubusercontent.com/50283958/124863602-540ab680-dff2-11eb-99e0-292c667b654a.png)
-
 **Check our [paper](https://arxiv.org/abs/2107.00910) for more details.**
 
 # Installation
