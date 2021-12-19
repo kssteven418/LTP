@@ -179,7 +179,8 @@ _import_structure = {
     "models.gpt2": ["GPT2_PRETRAINED_CONFIG_ARCHIVE_MAP", "GPT2Config", "GPT2Tokenizer"],
     "models.gpt_neo": ["GPT_NEO_PRETRAINED_CONFIG_ARCHIVE_MAP", "GPTNeoConfig"],
     "models.herbert": ["HerbertTokenizer"],
-    "models.ibert": ["IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "IBertConfig", "LTP_PRETRAINED_CONFIG_ARCHIVE_MAP", "LTPConfig"],
+    "models.ibert": ["IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "IBertConfig"],
+    "models.ltp": ["LTP_PRETRAINED_CONFIG_ARCHIVE_MAP", "LTPConfig"],
     "models.layoutlm": ["LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP", "LayoutLMConfig", "LayoutLMTokenizer"],
     "models.led": ["LED_PRETRAINED_CONFIG_ARCHIVE_MAP", "LEDConfig", "LEDTokenizer"],
     "models.longformer": ["LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP", "LongformerConfig", "LongformerTokenizer"],
@@ -678,7 +679,7 @@ if is_torch_available():
             "IBertPreTrainedModel",
         ]
     )
-    _import_structure["models.ibert"].extend(
+    _import_structure["models.ltp"].extend(
         [
             "LTP_PRETRAINED_MODEL_ARCHIVE_LIST",
             "LTPForMaskedLM",
@@ -1488,7 +1489,7 @@ if TYPE_CHECKING:
     from .models.gpt_neo import GPT_NEO_PRETRAINED_CONFIG_ARCHIVE_MAP, GPTNeoConfig
     from .models.herbert import HerbertTokenizer
     from .models.ibert import IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, IBertConfig
-    from .models.ibert import LTP_PRETRAINED_CONFIG_ARCHIVE_MAP, LTPConfig
+    from .models.ltp import LTP_PRETRAINED_CONFIG_ARCHIVE_MAP, LTPConfig
     from .models.layoutlm import LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP, LayoutLMConfig, LayoutLMTokenizer
     from .models.led import LED_PRETRAINED_CONFIG_ARCHIVE_MAP, LEDConfig, LEDTokenizer
     from .models.longformer import LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, LongformerConfig, LongformerTokenizer
@@ -1929,7 +1930,7 @@ if TYPE_CHECKING:
             IBertModel,
             IBertPreTrainedModel,
         )
-        from .models.ibert import (
+        from .models.ltp import (
             LTP_PRETRAINED_MODEL_ARCHIVE_LIST,
             LTPForMaskedLM,
             LTPForMultipleChoice,

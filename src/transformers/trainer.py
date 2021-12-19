@@ -1102,15 +1102,14 @@ class Trainer:
         model.zero_grad()
 
         # TODO this is an adhoc solution
-        #model.ibert.set_lambda_threshold(self.args.lambda_threshold)
         if self.args.masking_mode == 'hard':
-            model.ibert.set_hard_masking(True)
+            model.get_model().set_hard_masking(True)
         elif self.args.masking_mode == 'soft':
-            model.ibert.set_hard_masking(False)
+            model.get_model().set_hard_masking(False)
         else:
             raise NotImplementedError
 
-        model.ibert.set_temperature(self.args.temperature)
+        model.get_model().set_temperature(self.args.temperature)
 
         self.control = self.callback_handler.on_train_begin(self.args, self.state, self.control)
 
@@ -1266,13 +1265,13 @@ class Trainer:
                 )
 
         if self.args.masking_mode == 'hard':
-            self.model.ibert.set_hard_masking(True)
+            self.model.get_model().set_hard_masking(True)
         elif self.args.masking_mode == 'soft':
-            self.model.ibert.set_hard_masking(False)
+            self.model.get_model().set_hard_masking(False)
         else:
             raise NotImplementedError
 
-        model.ibert.set_temperature(self.args.temperature)
+        model.get_model().set_temperature(self.args.temperature)
 
         metrics = speed_metrics("train", start_time, self.state.max_steps)
         if self._total_flos is not None:
@@ -1588,11 +1587,12 @@ class Trainer:
             loss = loss / self.args.gradient_accumulation_steps
 
         if self.args.masking_mode == 'soft':
-            loss_reg = 0
-            for layer in self.model.ibert.encoder.layer:
-                if layer.mask is not None:
-                    loss_reg += layer.mask.mean() #TODO right?
-            loss += self.args.lambda_threshold * loss_reg
+            loss_regularizer = 0
+            soft_masks = self.model.get_model().get_soft_mask()
+            for mask in soft_masks:
+                if mask is not None:
+                    loss_regularizer += mask.mean()
+            loss += self.args.lambda_threshold * loss_regularizer
 
         if self.use_amp:
             self.scaler.scale(loss).backward()
@@ -1628,8 +1628,39 @@ class Trainer:
         else:
             # We don't use .loss here since the model may return tuples instead of ModelOutput.
             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+        
+        if "attention_sentence_lengths" in outputs and len(outputs["attention_sentence_lengths"]) > 0:
+            assert "ffn_sentence_lengths" in outputs and len(outputs["ffn_sentence_lengths"]) > 0
+            dim = model.get_model().config.hidden_size
+            mac, baseline_mac = self.compute_macs(
+                outputs["attention_sentence_lengths"],
+                outputs["ffn_sentence_lengths"],
+                dim,
+            )
+            
+            self.macs += mac
+            self.baseline_macs += baseline_mac
 
         return (loss, outputs) if return_outputs else loss
+
+    def compute_macs(self, attention_sentence_lengths, ffn_sentence_lengths, dim):
+        def _layer_mac(attention_sentence_length, ffn_sentence_length, dim):
+            attention_mac = 2 * dim * attention_sentence_length ** 2 # Q*V, attn*V
+            attention_mac += 4 * dim ** 2 * attention_sentence_length
+            ffn_mac = 8 * dim ** 2 * ffn_sentence_length
+            return attention_mac + ffn_mac
+
+        mac = 0
+        for i in range(len(attention_sentence_lengths)):
+            attention_sentence_length = attention_sentence_lengths[i]
+            ffn_sentence_length = ffn_sentence_lengths[i]
+            mac += _layer_mac(attention_sentence_length, ffn_sentence_length, dim)
+
+        baseline_mac = _layer_mac(
+            attention_sentence_lengths[0], attention_sentence_lengths[0], dim
+        ) * len(attention_sentence_lengths)
+
+        return mac.cpu().tolist(), baseline_mac.cpu().tolist()
 
     def is_local_process_zero(self) -> bool:
         """
@@ -1830,16 +1861,11 @@ class Trainer:
 
         n_samples = len(eval_dataset if eval_dataset is not None else self.eval_dataset)
         output.metrics.update(speed_metrics(metric_key_prefix, start_time, n_samples))
-        macs = sum(self.model.ibert.macs) / len(self.model.ibert.macs)
-        macs_baseline = sum(self.model.ibert.macs_baseline) / len(self.model.ibert.macs_baseline)
-        output.metrics.update({'relative_macs': macs / macs_baseline})
-        output.metrics.update({'gflops': macs_baseline * 2 / 1e9})
-        seqlen = self.model.ibert.seqlen_baseline
-        self.model.ibert.print_sentence_lengths()
-        self.model.ibert.reset_macs()
+        target_model = self.model.get_model()
         self.log(output.metrics)
 
-        for i, layer in enumerate(self.model.ibert.encoder.layer):
+        logger.info("")
+        for i, layer in enumerate(target_model.encoder.layer):
             # just an adhoc code for debugging
             if 'AbsoluteThresholdTokenPruner' in str(type(layer.attention.self.pruner)):
                 logger.info("Layer %d Treshold: %.5f" % (i,
@@ -1969,6 +1995,9 @@ class Trainer:
 
         self.callback_handler.eval_dataloader = dataloader
 
+        self.macs = []
+        self.baseline_macs = []
+
         for step, inputs in enumerate(dataloader):
             loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
             if loss is not None:
@@ -2019,6 +2048,13 @@ class Trainer:
         for key in list(metrics.keys()):
             if not key.startswith(f"{metric_key_prefix}_"):
                 metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)
+
+        # Log FLOPs if MACs are counted
+        if len(self.macs) > 0:
+            assert len(self.baseline_macs) > 0
+            metrics["baseline_gflops"] = 2 * sum(self.baseline_macs) / len(self.baseline_macs) * 1e-9
+            metrics["gflops"] = 2 * sum(self.macs) / len(self.macs) * 1e-9
+            metrics["relative_flops"] = sum(self.macs) / sum(self.baseline_macs)
 
         return PredictionOutput(predictions=preds, label_ids=label_ids, metrics=metrics)
 
