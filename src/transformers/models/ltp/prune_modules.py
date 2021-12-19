@@ -148,8 +148,9 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
 
         new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
         new_attention_mask[pruning_scores.unsqueeze(1).unsqueeze(1) < max(1e-5, keep_threshold)] = -10000
+        pruner_outputs = {'threshold': keep_threshold, 'scores': pruning_scores}
 
-        return new_attention_mask, keep_threshold, pruning_scores
+        return new_attention_mask, pruner_outputs
 
 
 TOKEN_PRUNERS = {'topk': CascadeTokenPruner,

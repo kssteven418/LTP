@@ -1102,7 +1102,6 @@ class Trainer:
         model.zero_grad()
 
         # TODO this is an adhoc solution
-        #model.ibert.set_lambda_threshold(self.args.lambda_threshold)
         if self.args.masking_mode == 'hard':
             model.get_model().set_hard_masking(True)
         elif self.args.masking_mode == 'soft':
@@ -1588,11 +1587,12 @@ class Trainer:
             loss = loss / self.args.gradient_accumulation_steps
 
         if self.args.masking_mode == 'soft':
-            loss_reg = 0
-            for layer in self.model.get_model().encoder.layer:
-                if layer.mask is not None:
-                    loss_reg += layer.mask.mean() #TODO right?
-            loss += self.args.lambda_threshold * loss_reg
+            loss_regularizer = 0
+            soft_masks = self.model.get_model().get_soft_mask()
+            for mask in soft_masks:
+                if mask is not None:
+                    loss_regularizer += mask.mean()
+            loss += self.args.lambda_threshold * loss_regularizer
 
         if self.use_amp:
             self.scaler.scale(loss).backward()
@@ -2059,8 +2059,6 @@ class Trainer:
         # Log FLOPs if MACs are counted
         if len(self.macs) > 0:
             assert len(self.baseline_macs) > 0
-            #baseline_macs = self.baseline_macs.cpu().tolist()
-            #macs = self.macs.cpu().tolist()
             metrics["baseline_gflops"] = 2 * sum(self.baseline_macs) / len(self.baseline_macs) * 1e-9
             metrics["gflops"] = 2 * sum(self.macs) / len(self.macs) * 1e-9
             metrics["relative_flops"] = sum(self.macs) / sum(self.baseline_macs)

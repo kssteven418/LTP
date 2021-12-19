@@ -121,12 +121,11 @@ class LTPSelfAttention(IBertSelfAttention):
         attention_probs = self.dropout(attention_probs)
 
         # update the cascading attention mask
-        threshold = None
-        pruning_scores = None
+        pruner_outputs = None
         if self.prune_mode:
             new_attention_mask = self.pruner.update_attention_mask(attention_mask, attention_probs, sentence_lengths)
-            if len(new_attention_mask) == 3:
-                new_attention_mask, threshold, pruning_scores = new_attention_mask
+            if len(new_attention_mask) == 2:
+                new_attention_mask, pruner_outputs = new_attention_mask
         else:
             new_attention_mask = attention_mask
 
@@ -174,7 +173,7 @@ class LTPSelfAttention(IBertSelfAttention):
             else (context_layer_scaling_factor,)
         )
 
-        return outputs, output_scaling_factor, new_attention_mask, threshold, pruning_scores, sentence_len_dict
+        return outputs, output_scaling_factor, new_attention_mask, pruner_outputs, sentence_len_dict
 
 
 class LTPAttention(IBertAttention):
@@ -192,7 +191,7 @@ class LTPAttention(IBertAttention):
         output_attentions=False,
     ):
         self_outputs, self_outputs_scaling_factor, new_attention_mask, \
-        threshold, pruning_scores, sentence_len_dict = self.self(
+        pruner_outputs, sentence_len_dict = self.self(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -205,14 +204,13 @@ class LTPAttention(IBertAttention):
         )
         outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         outputs_scaling_factor = (attention_output_scaling_factor,) + self_outputs_scaling_factor[1:]
-        return outputs, outputs_scaling_factor, new_attention_mask, threshold, pruning_scores, sentence_len_dict
+        return outputs, outputs_scaling_factor, new_attention_mask, pruner_outputs, sentence_len_dict
 
 
 class LTPLayer(IBertLayer):
     def __init__(self, config, module_num):
         super().__init__(config)
         self.attention = LTPAttention(config, module_num)
-        self.lambda_threshold = None
         self.module_num = module_num
         self.mask = None
         self.hard_masking = False
@@ -229,7 +227,7 @@ class LTPLayer(IBertLayer):
     ):
 
         self_attention_outputs, self_attention_outputs_scaling_factor, \
-        new_attention_mask, threshold, pruning_scores, sentence_len_dict = self.attention(
+        new_attention_mask, pruner_outputs, sentence_len_dict = self.attention(
             hidden_states,
             hidden_states_scaling_factor,
             attention_mask,
@@ -246,8 +244,9 @@ class LTPLayer(IBertLayer):
             attention_output, attention_output_scaling_factor
         )
 
-        if not self.hard_masking and self.training:
-            if pruning_scores is not None and threshold is not None:
+        if self.training and not self.hard_masking:
+            if pruner_outputs is not None:
+                threshold, pruning_scores = pruner_outputs['threshold'], pruner_outputs['scores']
                 self.mask = torch.sigmoid((pruning_scores - threshold) / self.temperature)
                 layer_output = layer_output * self.mask.unsqueeze(-1)
             
@@ -265,7 +264,6 @@ class LTPEncoder(IBertEncoder):
         super().__init__(config)
         self.layer = nn.ModuleList([LTPLayer(config, i) for i in range(config.num_hidden_layers)])
         self.prune_mode = config.prune_mode
-        self.threshold_scores = np.zeros((1, config.num_hidden_layers))
 
     def forward(
         self,
@@ -524,14 +522,13 @@ class LTPModel(LTPPreTrainedModel):
         for layer, heads in heads_to_prune.items():
             self.encoder.layer[layer].attention.prune_heads(heads)
 
-    def set_lambda_threshold(self, lambda_threshold):
-        for layer in self.encoder.layer:
-            layer.lambda_threshold = lambda_threshold
-
     def set_hard_masking(self, hard_masking: bool):
         for layer in self.encoder.layer:
             layer.attention.self.hard_masking = hard_masking
             layer.hard_masking = hard_masking
+
+    def get_soft_mask(self):
+        return [layer.mask for layer in self.encoder.layer]
 
     @add_start_docstrings_to_model_forward(LTP_INPUTS_DOCSTRING.format("(batch_size, sequence_length)"))
     @add_code_sample_docstrings(
