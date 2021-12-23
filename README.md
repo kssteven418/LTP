@@ -110,7 +110,7 @@ python run.py --arch ltp-base --task {TASK} --restore {CKPT} --lr {LR} --bs 64 -
 The final model will be checkpointed in `{CKPT}/topk/lr_{LR}`.
 
 
-## Manual(Non-leanrable) Threshold Pruning
+## Manual (Non-learnable) Threshold Pruning
 Add the following lines in `{CKPT}/config.json`.
 ```
 "prune_mode": "absolute_threshold",
