@@ -117,14 +117,13 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
     implements the layer-by-layer operations for threshold token pruning, where tokens are pruned if the importance
     score is strictly less than a given fraction of the maximum token importance score
     """
-    def __init__(self, module_num, final_token_threshold=None, num_hidden_layers=None, scoring_mode='mean', **kwargs):
+    def __init__(self, module_num, final_token_threshold=None, num_hidden_layers=None, **kwargs):
         super().__init__()
         self.keep_threshold_base = torch.tensor(final_token_threshold * module_num / num_hidden_layers, device='cuda')
         self.keep_threshold = nn.Parameter(
                 torch.zeros_like(self.keep_threshold_base,  device='cuda'),
                 requires_grad=True,
         )
-        self.scoring_mode = scoring_mode
         self.module_num = module_num
 
         logger.info("Layer %d Threshold: %f" % (module_num, float(self.keep_threshold_base + self.keep_threshold)))
@@ -139,12 +138,7 @@ class AbsoluteThresholdTokenPruner(AbstractTokenPruner):
         # compute the pruning scores by summing the attention probabilities over all heads
         attention_mask_index = (attention_mask < 0).permute(0, 1, 3, 2).repeat(1, attention_probs.shape[1], 1, sz)
         attention_probs[attention_mask_index] = 0 
-        if self.scoring_mode == 'mean':
-            pruning_scores = attention_probs.view(batch_size, -1, sz).mean(dim=1)
-        elif self.scoring_mode == 'mean_norm':
-            seqlen = (attention_mask.squeeze(1).squeeze(1) == 0).sum(-1)
-            pruning_scores = attention_probs.sum(2) / seqlen.reshape(-1, 1, 1) # BS, H, SL
-            pruning_scores = pruning_scores.mean(1)
+        pruning_scores = attention_probs.view(batch_size, -1, sz).mean(dim=1)
 
         new_attention_mask = torch.zeros(attention_mask.shape, device=attention_mask.device)
         new_attention_mask[pruning_scores.unsqueeze(1).unsqueeze(1) < max(1e-5, keep_threshold)] = -10000

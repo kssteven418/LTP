@@ -38,7 +38,6 @@ Add the following lines in the configuration file `{CKPT}/config.json`.
 ```
 "prune_mode": "absolute_threshold",
 "final_token_threshold": 0.01, 
-"scoring_mode": "mean",
 ```
 
 `final_token_threshold` determines the token threshold of the last layer, and the thresholds of the remaining layers will be linearly scaled.
@@ -116,7 +115,6 @@ Add the following lines in `{CKPT}/config.json`.
 ```
 "prune_mode": "absolute_threshold",
 "final_token_threshold": 0.01, 
-"scoring_mode": "mean",
 ```
 
 Run the following command:

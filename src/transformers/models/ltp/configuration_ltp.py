@@ -115,7 +115,6 @@ class LTPConfig(PretrainedConfig):
         prune_mode=None,
         token_keep_rate=1,
         token_threshold=0,
-        scoring_mode='mean',
         final_token_threshold=0,
         **kwargs
     ):
@@ -152,7 +151,5 @@ class LTPConfig(PretrainedConfig):
             self.final_token_threshold = final_token_threshold
         elif self.prune_mode == 'absolute_threshold':
             self.prune_kwargs = {'final_token_threshold': final_token_threshold,
-                                 'num_hidden_layers': num_hidden_layers,
-                                 'scoring_mode': scoring_mode}
+                                 'num_hidden_layers': num_hidden_layers}
             self.final_token_threshold = final_token_threshold
-            self.scoring_mode = scoring_mode
