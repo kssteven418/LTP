@@ -130,3 +130,7 @@ python run.py --arch ltp-base --task {TASK} --restore {CKPT} --lr {LR} --bs 64 -
 The final model will be checkpointed in `{CKPT}/hard/lr_{LR}`.
 
 
+# Copyright
+```
+THIS SOFTWARE AND/OR DATA WAS DEPOSITED IN THE BAIR OPEN RESEARCH COMMONS REPOSITORY ON 02/07/23.
+```
