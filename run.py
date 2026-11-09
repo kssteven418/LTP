@@ -36,7 +36,7 @@ def arg_parse():
 
 args = arg_parse()
 
-with open(os.path.join(args.restore, "config.json")) as f:
+with open(os.path.join(args.restore, "config.json"), encoding="utf-8") as f:
     config = json.load(f)
 
 prune_mode = config['prune_mode']
